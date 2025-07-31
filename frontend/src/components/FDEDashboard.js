@@ -584,6 +584,12 @@ const FDEDashboard = ({ onLogout }) => {
     setMessagingSidebarOpen(!messagingSidebarOpen);
   };
 
+  const handleMessageSent = () => {
+    // This will be called when a message is sent through the modal
+    // The MessagingSidebar will handle its own refresh
+    console.log('Message sent successfully');
+  };
+
   // Prepare sector distribution for PieChart
   const sectorCounts = sectors.map(sector => ({
     name: sector,
@@ -826,6 +832,7 @@ const FDEDashboard = ({ onLogout }) => {
         onClose={() => setMessagingModal({ ...messagingModal, isOpen: false })}
         schoolName={messagingModal.aeoName}
         schoolData={{ id: messagingModal.aeoId, name: messagingModal.aeoName }}
+        onMessageSent={handleMessageSent}
       />
 
       {/* Messaging Sidebar */}

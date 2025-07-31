@@ -670,6 +670,11 @@ function App() {
     });
   };
 
+  const handleMessageSent = () => {
+    // This will be called when a message is sent through the modal
+    console.log('Message sent successfully');
+  };
+
   // Handler for successful login
   const handleLogin = (userData) => {
     setUser(userData);
@@ -1235,6 +1240,7 @@ function App() {
           onClose={handleCloseMessagingModal}
           schoolName={messagingModal.schoolName}
           schoolData={messagingModal.schoolData}
+          onMessageSent={handleMessageSent}
         />
       </Container>
     </>

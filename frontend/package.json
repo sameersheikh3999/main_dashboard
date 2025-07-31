@@ -19,9 +19,7 @@
     "eslint-config-react-app": "^7.0.1",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "prettier": "^3.1.0",
-    "husky": "^8.0.3",
-    "lint-staged": "^15.2.0"
+    "prettier": "^3.1.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -33,18 +31,7 @@
     "lint": "eslint src --ext .js,.jsx",
     "lint:fix": "eslint src --ext .js,.jsx --fix",
     "format": "prettier --write src/**/*.{js,jsx,json,css,md}",
-    "format:check": "prettier --check src/**/*.{js,jsx,json,css,md}",
-    "prepare": "husky install",
-    "pre-commit": "lint-staged"
-  },
-  "lint-staged": {
-    "src/**/*.{js,jsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "src/**/*.{json,css,md}": [
-      "prettier --write"
-    ]
+    "format:check": "prettier --check src/**/*.{js,jsx,json,css,md}"
   },
   "eslintConfig": {
     "extends": [

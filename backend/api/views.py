@@ -6,7 +6,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from .models import UserProfile, Conversation, Message
+from django.db import models
+from .models import UserProfile, Conversation, Message, TeacherData, AggregatedData, FilterOptions, SchoolData
 from .serializers import UserSerializer, ConversationSerializer, MessageSerializer, RegisterSerializer
 from .services import DataService
 from rest_framework import status
@@ -62,6 +63,126 @@ class MessageListView(ListAPIView):
             'receiver__userprofile'
         ).filter(conversation_id=conversation_id).order_by('timestamp')
 
+class UserMessagesView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, user_id):
+        """Get all messages between current user and specified user"""
+        try:
+            current_user = request.user
+            other_user = User.objects.get(id=user_id)
+            
+            # Find conversations between these two users
+            conversations = Conversation.objects.filter(
+                (models.Q(aeo=current_user) & models.Q(principal=other_user)) |
+                (models.Q(aeo=other_user) & models.Q(principal=current_user))
+            )
+            
+            if not conversations.exists():
+                return Response([], status=status.HTTP_200_OK)
+            
+            # Get all messages from these conversations
+            conversation_ids = [conv.id for conv in conversations]
+            messages = Message.objects.select_related(
+                'sender__userprofile', 
+                'receiver__userprofile'
+            ).filter(
+                conversation_id__in=conversation_ids
+            ).order_by('timestamp')
+            
+            serializer = MessageSerializer(messages, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserConversationsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get all conversations for the current user with message previews"""
+        try:
+            current_user = request.user
+            
+            # Get all conversations where current user is involved
+            conversations = Conversation.objects.filter(
+                models.Q(aeo=current_user) | models.Q(principal=current_user)
+            ).select_related('aeo__userprofile', 'principal__userprofile')
+            
+            conversation_data = []
+            
+            for conversation in conversations:
+                # Get the other user in the conversation
+                if conversation.aeo == current_user:
+                    other_user = conversation.principal
+                    other_user_role = 'Principal'
+                else:
+                    other_user = conversation.aeo
+                    other_user_role = 'AEO'
+                
+                # Get the latest message in this conversation
+                latest_message = Message.objects.filter(
+                    conversation=conversation
+                ).order_by('-timestamp').first()
+                
+                # Get unread count for current user
+                unread_count = Message.objects.filter(
+                    conversation=conversation,
+                    receiver=current_user,
+                    is_read=False
+                ).count()
+                
+                conversation_data.append({
+                    'conversation_id': conversation.id,
+                    'school_name': conversation.school_name,
+                    'other_user': {
+                        'id': other_user.id,
+                        'username': other_user.username,
+                        'role': other_user_role,
+                        'school_name': getattr(other_user.userprofile, 'school_name', None),
+                        'emis': getattr(other_user.userprofile, 'emis', None),
+                    },
+                    'latest_message': {
+                        'text': latest_message.message_text if latest_message else '',
+                        'timestamp': latest_message.timestamp if latest_message else conversation.created_at,
+                        'sender_id': latest_message.sender.id if latest_message else None,
+                        'is_own': latest_message.sender == current_user if latest_message else False,
+                    },
+                    'unread_count': unread_count,
+                    'created_at': conversation.created_at,
+                    'last_message_at': conversation.last_message_at,
+                })
+            
+            # Sort by last message timestamp (most recent first)
+            conversation_data.sort(key=lambda x: x['last_message_at'], reverse=True)
+            
+            return Response(conversation_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class MarkMessagesReadView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, conversation_id):
+        """Mark all messages in a conversation as read for the current user"""
+        try:
+            current_user = request.user
+            
+            # Mark all unread messages in this conversation as read
+            Message.objects.filter(
+                conversation_id=conversation_id,
+                receiver=current_user,
+                is_read=False
+            ).update(is_read=True)
+            
+            return Response({'success': True}, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 # Messaging
 class MessageCreateView(CreateAPIView):
     serializer_class = MessageSerializer
@@ -82,62 +203,11 @@ class MessageCreateView(CreateAPIView):
         try:
             sender = request.user
             
-            # Try to find receiver in local database first
+            # Try to find receiver in local database
             try:
                 receiver = User.objects.get(id=receiver_id)
             except User.DoesNotExist:
-                # If not found in local DB, check if it's a BigQuery principal
-                # The receiver_id might be a hash of the school name
-                try:
-                    # Initialize BigQuery client
-                    client = bigquery.Client()
-                    
-                    # Query to get principal information from BigQuery
-                    query = """
-                    SELECT DISTINCT
-                        e.Institute as school_name,
-                        e.EMIS,
-                        e.Sector,
-                        'Principal' as role,
-                        CONCAT('principal_', LOWER(REPLACE(REPLACE(e.Institute, ' ', '_'), '-', '_'))) as username
-                    FROM `tbproddb.FDE_Schools` e
-                    WHERE e.Institute = @school_name
-                    LIMIT 1
-                    """
-                    
-                    # Execute query with parameter
-                    query_job = client.query(query, job_config=bigquery.QueryJobConfig(
-                        query_parameters=[
-                            bigquery.ScalarQueryParameter("school_name", "STRING", school_name),
-                        ]
-                    ))
-                    
-                    results = query_job.result()
-                    
-                    # Check if we got any results
-                    principal_data = None
-                    for row in results:
-                        principal_data = {
-                            'id': hash(row.school_name) % 1000000,  # Generate a consistent ID
-                            'username': row.username,
-                            'school_name': row.school_name,
-                            'role': row.role,
-                            'emis': row.EMIS,
-                            'sector': row.Sector
-                        }
-                        break
-                    
-                    if principal_data and principal_data['id'] == int(receiver_id):
-                        # This is a valid BigQuery principal, create a virtual receiver
-                        # For messaging purposes, we'll use the sender as both sender and receiver
-                        # since we can't create a User object for BigQuery data
-                        receiver = sender  # Use sender as receiver for BigQuery principals
-                    else:
-                        return Response({'error': 'Receiver user not found'}, status=status.HTTP_404_NOT_FOUND)
-                        
-                except Exception as e:
-                    print(f"BigQuery principal lookup error: {e}")
-                    return Response({'error': 'Receiver user not found'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': 'Receiver user not found'}, status=status.HTTP_404_NOT_FOUND)
             
             # Find or create conversation
             if conversation_id:
@@ -162,60 +232,10 @@ class MessageCreateView(CreateAPIView):
                 elif sender_role == 'Principal' and receiver_role == 'AEO':
                     aeo_user = receiver
                     principal_user = sender
-                # For FDE to Principal messaging (if needed)
-                elif sender_role == 'FDE' and receiver_role == 'Principal':
-                    aeo_user = None  # Need to find the AEO for this school
-                    principal_user = receiver
-                elif sender_role == 'Principal' and receiver_role == 'FDE':
-                    aeo_user = None  # Need to find the AEO for this school
-                    principal_user = sender
                 else:
-                    # Default fallback
-                    aeo_user = sender if sender_role == 'AEO' else receiver
-                    principal_user = sender if sender_role == 'Principal' else receiver
-                
-                # If we need to find an AEO for FDE-Principal conversations
-                if aeo_user is None:
-                    # Find AEO based on school sector
-                    try:
-                        # Get school sector from BigQuery
-                        client = bigquery.Client()
-                        query = """
-                        SELECT DISTINCT e.Sector
-                        FROM `tbproddb.FDE_Schools` e
-                        WHERE e.Institute = @school_name
-                        LIMIT 1
-                        """
-                        query_job = client.query(query, job_config=bigquery.QueryJobConfig(
-                            query_parameters=[
-                                bigquery.ScalarQueryParameter("school_name", "STRING", school_name),
-                            ]
-                        ))
-                        results = query_job.result()
-                        
-                        sector = None
-                        for row in results:
-                            sector = row.Sector
-                            break
-                        
-                        if sector:
-                            # Create a virtual AEO user for this sector
-                            aeo_user = User.objects.filter(userprofile__role='AEO').first()
-                            if not aeo_user:
-                                # Create a placeholder AEO user if none exists
-                                aeo_user = User.objects.create_user(
-                                    username=f'aeo_{sector.lower().replace(" ", "_")}',
-                                    password='placeholder'
-                                )
-                                UserProfile.objects.create(
-                                    user=aeo_user,
-                                    role='AEO',
-                                    sector=sector
-                                )
-                    except Exception as e:
-                        print(f"Error finding AEO for school {school_name}: {e}")
-                        # Fallback to using sender as AEO
-                        aeo_user = sender
+                    # Default fallback - use sender as AEO, receiver as Principal
+                    aeo_user = sender
+                    principal_user = receiver
                 
                 # Find existing conversation or create new one
                 conversation, created = Conversation.objects.get_or_create(
@@ -248,44 +268,26 @@ class PrincipalListView(APIView):
     
     def get(self, request):
         try:
-            # Initialize BigQuery client
-            client = bigquery.Client()
+            # Get principals from local database
+            principal_users = User.objects.filter(userprofile__role='Principal').select_related('userprofile')
             
-            # Query to get all principals from BigQuery
-            query = """
-            SELECT DISTINCT
-                e.Institute as school_name,
-                e.EMIS,
-                e.Sector,
-                'Principal' as role,
-                CONCAT('principal_', LOWER(REPLACE(REPLACE(e.Institute, ' ', '_'), '-', '_'))) as username,
-                CONCAT('principal_', LOWER(REPLACE(REPLACE(e.Institute, ' ', '_'), '-', '_'))) as display_name
-            FROM `tbproddb.FDE_Schools` e
-            ORDER BY e.Institute
-            """
-            
-            # Execute query
-            query_job = client.query(query)
-            results = query_job.result()
-            
-            # Convert to list of dictionaries
             data = []
-            for row in results:
+            for user in principal_users:
                 data.append({
-                    'id': hash(row.school_name) % 1000000,  # Generate a consistent ID
-                    'username': row.username,
-                    'school_name': row.school_name,
-                    'role': row.role,
-                    'emis': row.EMIS,
-                    'sector': row.Sector,
-                    'display_name': row.display_name
+                    'id': user.id,
+                    'username': user.username,
+                    'school_name': user.userprofile.school_name or 'Unknown School',
+                    'role': 'Principal',
+                    'emis': user.userprofile.emis,
+                    'sector': user.userprofile.sector,
+                    'display_name': user.username
                 })
             
             return Response(data)
             
         except Exception as e:
-            print(f"BigQuery principals list error: {e}")
-            return Response({'error': f'Error fetching principals from BigQuery: {str(e)}'}, status=500)
+            print(f"Principals list error: {e}")
+            return Response({'error': f'Error fetching principals: {str(e)}'}, status=500)
 
 class PrincipalDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -296,54 +298,81 @@ class PrincipalDetailView(APIView):
             return Response({'error': 'schoolName parameter is required'}, status=400)
         
         try:
-            # Initialize BigQuery client
-            client = bigquery.Client()
+            # First try to find the principal in our local database
+            principal_profile = UserProfile.objects.filter(
+                role='Principal',
+                school_name=schoolName
+            ).select_related('user').first()
             
-            # Query to get principal information from BigQuery
-            query = """
-            SELECT DISTINCT
-                e.Institute as school_name,
-                e.EMIS,
-                e.Sector,
-                'Principal' as role,
-                CONCAT('principal_', LOWER(REPLACE(REPLACE(e.Institute, ' ', '_'), '-', '_'))) as username,
-                CONCAT('principal_', LOWER(REPLACE(REPLACE(e.Institute, ' ', '_'), '-', '_'))) as display_name
-            FROM `tbproddb.FDE_Schools` e
-            WHERE e.Institute = @school_name
-            LIMIT 1
-            """
-            
-            # Execute query with parameter
-            query_job = client.query(query, job_config=bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("school_name", "STRING", schoolName),
-                ]
-            ))
-            
-            results = query_job.result()
-            
-            # Check if we got any results
-            principal_data = None
-            for row in results:
+            if principal_profile:
+                # Return the actual user data from our database
                 principal_data = {
-                    'id': hash(row.school_name) % 1000000,  # Generate a consistent ID
-                    'username': row.username,
-                    'school_name': row.school_name,
-                    'role': row.role,
-                    'emis': row.EMIS,
-                    'sector': row.Sector,
-                    'display_name': row.display_name
+                    'id': principal_profile.user.id,  # Use actual user ID
+                    'username': principal_profile.user.username,
+                    'school_name': principal_profile.school_name,
+                    'role': principal_profile.role,
+                    'emis': principal_profile.emis,
+                    'sector': principal_profile.sector,
+                    'display_name': f"Principal {principal_profile.school_name}"
                 }
-                break
-            
-            if principal_data:
                 return Response(principal_data)
-            else:
+            
+            # If not found in local database, try BigQuery as fallback
+            try:
+                # Initialize BigQuery client
+                client = bigquery.Client()
+                
+                # Query to get principal information from BigQuery
+                query = """
+                SELECT DISTINCT
+                    e.Institute as school_name,
+                    e.EMIS,
+                    e.Sector,
+                    'Principal' as role,
+                    CONCAT('principal_', LOWER(REPLACE(REPLACE(e.Institute, ' ', '_'), '-', '_'))) as username,
+                    CONCAT('principal_', LOWER(REPLACE(REPLACE(e.Institute, ' ', '_'), '-', '_'))) as display_name
+                FROM `tbproddb.FDE_Schools` e
+                WHERE e.Institute = @school_name
+                LIMIT 1
+                """
+                
+                # Execute query with parameter
+                query_job = client.query(query, job_config=bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("school_name", "STRING", schoolName),
+                    ]
+                ))
+                
+                results = query_job.result()
+                
+                # Check if we got any results
+                for row in results:
+                    # Try to find the user in our database by username
+                    try:
+                        user = User.objects.get(username=row.username)
+                        principal_data = {
+                            'id': user.id,  # Use actual user ID
+                            'username': user.username,
+                            'school_name': row.school_name,
+                            'role': row.role,
+                            'emis': row.EMIS,
+                            'sector': row.Sector,
+                            'display_name': row.display_name
+                        }
+                        return Response(principal_data)
+                    except User.DoesNotExist:
+                        # User doesn't exist in our database
+                        return Response({'error': f'Principal user not found in database for school: {schoolName}'}, status=404)
+                
                 return Response({'error': f'School not found in BigQuery: {schoolName}'}, status=404)
                 
+            except Exception as e:
+                print(f"BigQuery principal lookup error: {e}")
+                return Response({'error': f'Error fetching principal data from BigQuery: {str(e)}'}, status=500)
+                
         except Exception as e:
-            print(f"BigQuery principal lookup error: {e}")
-            return Response({'error': f'Error fetching principal data from BigQuery: {str(e)}'}, status=500)
+            print(f"Principal detail lookup error: {e}")
+            return Response({'error': f'Error fetching principal data: {str(e)}'}, status=500)
 
 # AEOs
 class AEOListView(APIView):
@@ -413,80 +442,8 @@ class FDEListView(APIView):
             print(f"FDEs list error: {e}")
             return Response({'error': f'Error fetching FDEs: {str(e)}'}, status=500)
 
-# BigQuery endpoints (now using Django database)
-class BigQueryTeacherDataView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request):
-        try:
-            # Get user info
-            user = request.user
-            user_profile = user.userprofile
-            
-            # Get filter parameters
-            grade_filter = request.query_params.get('grade', '')
-            subject_filter = request.query_params.get('subject', '')
-            
-            # Get data from Django database
-            data = DataService.get_teacher_data(
-                user_profile=user_profile,
-                grade_filter=grade_filter,
-                subject_filter=subject_filter,
-                limit=1000
-            )
-            
-            return Response(data)
-            
-        except Exception as e:
-            print(f"Database error: {e}")
-            return Response({'error': 'Unable to fetch teacher data from database'}, status=500)
-
-class BigQueryAggregatedDataView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request):
-        try:
-            period = request.query_params.get('period', 'weekly')
-            user = request.user
-            user_profile = user.userprofile
-            
-            # Get filter parameters
-            grade_filter = request.query_params.get('grade', '')
-            subject_filter = request.query_params.get('subject', '')
-            
-            # Get data from Django database
-            data = DataService.get_aggregated_data(
-                user_profile=user_profile,
-                period=period,
-                grade_filter=grade_filter,
-                subject_filter=subject_filter,
-                limit=100
-            )
-            
-            return Response(data)
-            
-        except Exception as e:
-            print(f"Database aggregation error: {e}")
-            return Response({'error': 'Unable to fetch aggregated data from database'}, status=500)
-
-class BigQueryFilterOptionsView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request):
-        try:
-            user = request.user
-            user_profile = user.userprofile
-            
-            # Get filter options from Django database
-            data = DataService.get_filter_options(user_profile)
-            
-            return Response(data)
-            
-        except Exception as e:
-            print(f"Database filter options error: {e}")
-            return Response({'error': 'Unable to fetch filter options from database'}, status=500)
-
-class BigQuerySummaryStatsView(APIView):
+# Local database endpoints (replacing BigQuery)
+class LocalTeacherDataView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -499,29 +456,98 @@ class BigQuerySummaryStatsView(APIView):
             subject_filter = request.query_params.get('subject', '')
             sector_filter = request.query_params.get('sector', '')
             
-            # If sector filter is provided, temporarily override user's sector
-            original_sector = user_profile.sector
-            if sector_filter:
-                user_profile.sector = sector_filter
+            # Build query
+            queryset = TeacherData.objects.all()
             
-            # Get summary stats from Django database
-            data = DataService.get_summary_stats(
-                user_profile=user_profile,
-                grade_filter=grade_filter,
-                subject_filter=subject_filter
-            )
+            # Apply filters based on user role
+            if user_profile.role == 'AEO' and user_profile.sector:
+                queryset = queryset.filter(sector=user_profile.sector)
+            elif user_profile.role == 'Principal' and user_profile.school_name:
+                queryset = queryset.filter(school=user_profile.school_name)
             
-            # Restore original sector
+            # Apply additional filters
+            if grade_filter:
+                queryset = queryset.filter(grade=grade_filter)
+            if subject_filter:
+                queryset = queryset.filter(subject=subject_filter)
             if sector_filter:
-                user_profile.sector = original_sector
+                queryset = queryset.filter(sector=sector_filter)
+            
+            # Limit results
+            queryset = queryset.order_by('-week_start')[:1000]
+            
+            # Convert to list of dictionaries
+            data = []
+            for item in queryset:
+                data.append({
+                    'user_id': item.user_id,
+                    'teacher': item.teacher,
+                    'grade': item.grade,
+                    'subject': item.subject,
+                    'sector': item.sector,
+                    'emis': item.emis,
+                    'school': item.school,
+                    'week_start': item.week_start,
+                    'week_end': item.week_end,
+                    'week_number': item.week_number,
+                    'lp_ratio': item.lp_ratio,
+                })
             
             return Response(data)
             
         except Exception as e:
-            print(f"Database summary stats error: {e}")
-            return Response({'error': 'Unable to fetch summary statistics from database'}, status=500)
+            print(f"Local teacher data error: {e}")
+            return Response({'error': f'Error fetching teacher data: {str(e)}'}, status=500)
 
-class BigQueryAllSchoolsView(APIView):
+class LocalAggregatedDataView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user = request.user
+            user_profile = user.userprofile
+            period = request.query_params.get('period', 'weekly')
+            
+            # Get filter parameters
+            grade_filter = request.query_params.get('grade', '')
+            subject_filter = request.query_params.get('subject', '')
+            sector_filter = request.query_params.get('sector', '')
+            
+            # Build query
+            queryset = AggregatedData.objects.filter(period_type=period)
+            
+            # Apply filters based on user role
+            if user_profile.role == 'AEO' and user_profile.sector:
+                queryset = queryset.filter(sector=user_profile.sector)
+            elif user_profile.role == 'Principal' and user_profile.school_name:
+                queryset = queryset.filter(school=user_profile.school_name)
+            
+            # Apply additional filters
+            if sector_filter:
+                queryset = queryset.filter(sector=sector_filter)
+            
+            # Limit results
+            queryset = queryset.order_by('-period')[:100]
+            
+            # Convert to list of dictionaries
+            data = []
+            for item in queryset:
+                data.append({
+                    'school': item.school,
+                    'sector': item.sector,
+                    'period': item.period,
+                    'teacher_count': item.teacher_count,
+                    'avg_lp_ratio': item.avg_lp_ratio,
+                    'period_type': item.period_type,
+                })
+            
+            return Response(data)
+            
+        except Exception as e:
+            print(f"Local aggregated data error: {e}")
+            return Response({'error': f'Error fetching aggregated data: {str(e)}'}, status=500)
+
+class LocalFilterOptionsView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
@@ -529,14 +555,219 @@ class BigQueryAllSchoolsView(APIView):
             user = request.user
             user_profile = user.userprofile
             
-            # Get school data from Django database
-            data = DataService.get_school_data(user_profile)
+            # Get all filter options
+            filter_options = FilterOptions.objects.all()
+            
+            # Group by option type
+            options = {}
+            for option in filter_options:
+                if option.option_type not in options:
+                    options[option.option_type] = []
+                options[option.option_type].append(option.option_value)
+            
+            # Filter based on user role
+            if user_profile.role == 'AEO' and user_profile.sector:
+                # For AEO, only show options for their sector
+                if 'sectors' in options:
+                    options['sectors'] = [user_profile.sector]
+            
+            return Response(options)
+            
+        except Exception as e:
+            print(f"Local filter options error: {e}")
+            return Response({'error': f'Error fetching filter options: {str(e)}'}, status=500)
+
+class LocalSummaryStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user = request.user
+            user_profile = user.userprofile
+            
+            # Get filter parameters
+            sector_filter = request.query_params.get('sector', '')
+            
+            # Build query for school data
+            queryset = SchoolData.objects.all()
+            
+            # Apply filters based on user role
+            if user_profile.role == 'AEO' and user_profile.sector:
+                queryset = queryset.filter(sector=user_profile.sector)
+            elif user_profile.role == 'Principal' and user_profile.school_name:
+                queryset = queryset.filter(school_name=user_profile.school_name)
+            
+            # Apply additional filters
+            if sector_filter:
+                queryset = queryset.filter(sector=sector_filter)
+            
+            # Calculate summary statistics
+            total_schools = queryset.count()
+            total_teachers = queryset.aggregate(total=models.Sum('teacher_count'))['total'] or 0
+            avg_lp_ratio = queryset.aggregate(avg=models.Avg('avg_lp_ratio'))['avg'] or 0
+            
+            # Get recent teacher data for additional stats
+            teacher_queryset = TeacherData.objects.all()
+            if user_profile.role == 'AEO' and user_profile.sector:
+                teacher_queryset = teacher_queryset.filter(sector=user_profile.sector)
+            elif user_profile.role == 'Principal' and user_profile.school_name:
+                teacher_queryset = teacher_queryset.filter(school=user_profile.school_name)
+            
+            if sector_filter:
+                teacher_queryset = teacher_queryset.filter(sector=sector_filter)
+            
+            recent_teachers = teacher_queryset.order_by('-week_start')[:100]
+            active_teachers = recent_teachers.count()
+            
+            # Calculate performance breakdown before slicing
+            excellent_count = teacher_queryset.filter(lp_ratio__gte=80).count()
+            good_count = teacher_queryset.filter(lp_ratio__gte=60, lp_ratio__lt=80).count()
+            needs_improvement_count = teacher_queryset.filter(lp_ratio__lt=60).count()
+            
+            summary_stats = {
+                'total_schools': total_schools,
+                'total_teachers': total_teachers,
+                'active_teachers': active_teachers,
+                'overall_avg_lp_ratio': round(avg_lp_ratio, 2),
+                'performance_breakdown': {
+                    'excellent': excellent_count,
+                    'good': good_count,
+                    'needs_improvement': needs_improvement_count,
+                }
+            }
+            
+            return Response(summary_stats)
+            
+        except Exception as e:
+            print(f"Local summary stats error: {e}")
+            return Response({'error': f'Error fetching summary stats: {str(e)}'}, status=500)
+
+class LocalAllSchoolsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user = request.user
+            user_profile = user.userprofile
+            
+            # Get filter parameters
+            sector_filter = request.query_params.get('sector', '')
+            
+            # Build query
+            queryset = SchoolData.objects.all()
+            
+            # Apply filters based on user role
+            if user_profile.role == 'AEO' and user_profile.sector:
+                queryset = queryset.filter(sector=user_profile.sector)
+            elif user_profile.role == 'Principal' and user_profile.school_name:
+                queryset = queryset.filter(school_name=user_profile.school_name)
+            
+            # Apply additional filters
+            if sector_filter:
+                queryset = queryset.filter(sector=sector_filter)
+            
+            # Order by school name
+            queryset = queryset.order_by('school_name')
+            
+            # Convert to list of dictionaries
+            data = []
+            for item in queryset:
+                data.append({
+                    'emis': item.emis,
+                    'school_name': item.school_name,
+                    'sector': item.sector,
+                    'teacher_count': item.teacher_count,
+                    'avg_lp_ratio': item.avg_lp_ratio,
+                    'wifi_status': 'Available',  # Default value
+                    'wifi_available': True,  # Default value
+                    'avg_infrastructure_score': 4.0,  # Default value
+                    'teachers_with_mobile_access': item.teacher_count,  # Default value
+                    'mobile_phone_percentage': 100.0,  # Default value
+                    'teachers_with_observations': item.teacher_count,  # Default value
+                })
             
             return Response(data)
             
         except Exception as e:
-            print(f"Database all schools error: {e}")
-            return Response({'error': 'Unable to fetch school data from database'}, status=500)
+            print(f"Local all schools error: {e}")
+            return Response({'error': f'Error fetching schools data: {str(e)}'}, status=500)
+
+class EnhancedSchoolsDataView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Initialize BigQuery client
+            client = bigquery.Client()
+            
+            # Query to get enhanced school data with WiFi and mobile phone information
+            query = """
+            SELECT  
+                c.EMIS, 
+                c.Institute as school_name, 
+                c.Sector as sector,
+                COUNT(DISTINCT d.user_id) as teacher_count,
+                AVG(LEAST(IFNULL(a.lp_started, 0) / a.max_classes, 1) * 100) as avg_lp_ratio,
+                
+                -- WiFi and infrastructure data from teacher observations
+                COUNT(DISTINCT CASE 
+                    WHEN obs.supp_learn_envi_supp_learn_envi_score IS NOT NULL 
+                    THEN obs.user_id 
+                END) as teachers_with_observations,
+                
+                AVG(CAST(obs.supp_learn_envi_supp_learn_envi_score AS FLOAT64)) as avg_infrastructure_score,
+                
+                -- WiFi status based on infrastructure score
+                CASE 
+                    WHEN AVG(CAST(obs.supp_learn_envi_supp_learn_envi_score AS FLOAT64)) >= 4.0 THEN 'Available'
+                    WHEN AVG(CAST(obs.supp_learn_envi_supp_learn_envi_score AS FLOAT64)) >= 3.0 THEN 'Limited'
+                    ELSE 'Not Available'
+                END as wifi_status,
+                
+                -- Mobile phone access estimation
+                COUNT(DISTINCT CASE 
+                    WHEN CAST(obs.supp_learn_envi_supp_learn_envi_score AS FLOAT64) >= 3.5 
+                    THEN obs.user_id 
+                END) as teachers_with_mobile_access
+                
+            FROM `tbproddb.FDE_Schools` c
+            LEFT JOIN `tbproddb.user_school_profiles` d ON c.EMIS = d.emis_1
+            LEFT JOIN `tbproddb.weekly_time_table_NF` a ON d.user_id = a.user_id AND a.max_classes != 0
+            LEFT JOIN `tbproddb.TEACH_TOOL_OBSERVATION` obs ON d.user_id = obs.user_id 
+                AND obs.supp_learn_envi_supp_learn_envi_score IS NOT NULL 
+                AND obs.supp_learn_envi_supp_learn_envi_score != ''
+            GROUP BY c.EMIS, c.Institute, c.Sector
+            ORDER BY c.Institute
+            """
+            
+            query_job = client.query(query)
+            results = query_job.result()
+            
+            # Convert results to list of dictionaries
+            data = []
+            for row in results:
+                total_teachers = int(row.teacher_count) if row.teacher_count else 0
+                mobile_access = int(row.teachers_with_mobile_access) if row.teachers_with_mobile_access else 0
+                
+                data.append({
+                    'emis': row.EMIS,
+                    'school_name': row.school_name,
+                    'sector': row.sector,
+                    'teacher_count': total_teachers,
+                    'avg_lp_ratio': float(row.avg_lp_ratio) if row.avg_lp_ratio else 0,
+                    'wifi_status': row.wifi_status or 'Not Available',
+                    'wifi_available': row.wifi_status == 'Available',
+                    'avg_infrastructure_score': float(row.avg_infrastructure_score) if row.avg_infrastructure_score else 0,
+                    'teachers_with_mobile_access': mobile_access,
+                    'mobile_phone_percentage': round((mobile_access / total_teachers * 100) if total_teachers > 0 else 0, 1),
+                    'teachers_with_observations': int(row.teachers_with_observations) if row.teachers_with_observations else 0
+                })
+            
+            return Response(data)
+            
+        except Exception as e:
+            print(f"Error fetching enhanced schools data: {e}")
+            return Response({'error': str(e)}, status=500)
 
 class SchoolTeachersDataView(APIView):
     permission_classes = [IsAuthenticated]
@@ -557,6 +788,208 @@ class SchoolTeachersDataView(APIView):
             return Response(data)
         except Exception as e:
             print(f"Error fetching school teachers data: {e}")
+            return Response({'error': str(e)}, status=500)
+
+class TeacherObservationDataView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user_profile = request.user.userprofile
+            school_name = request.query_params.get('school_name')
+            
+            # If no school_name provided, use user's school
+            if not school_name and hasattr(user_profile, 'school_name'):
+                school_name = user_profile.school_name
+            
+            if not school_name:
+                return Response({'error': 'School name is required'}, status=400)
+            
+            # Initialize BigQuery client
+            client = bigquery.Client()
+            
+            # Query to get teacher observation data
+            query = """
+            SELECT  
+                a.date, 
+                a.user_id, 
+                c.EMIS, 
+                c.Institute as School, 
+                c.Sector,  
+                CAST(supp_learn_envi_supp_learn_envi_score AS FLOAT64) AS supp_learn_envi_score,  
+                CAST(pos_behav_expec_pos_behav_expec_score AS FLOAT64) AS pos_behav_expec_score,  
+                CAST(lesson_facilitation_lesson_facilitation_score AS FLOAT64) AS lesson_facilitation_score,  
+                CAST(cfu_cfu_score AS FLOAT64) AS cfu_score,  
+                CAST(feedback_feedback_score AS FLOAT64) AS feedback_score,  
+                CAST(ct_ct_score AS FLOAT64) AS ct_score,  
+                CAST(autonomy_autonomy_score AS FLOAT64) AS autonomy_score,  
+                CAST(perseverance_perseverance_score AS FLOAT64) AS perseverance_score,  
+                CAST(social_social_score AS FLOAT64) AS social_score,
+                
+                -- Overall average across the 9 indicators
+                ROUND((
+                    CAST(supp_learn_envi_supp_learn_envi_score AS FLOAT64) +  
+                    CAST(pos_behav_expec_pos_behav_expec_score AS FLOAT64) +  
+                    CAST(lesson_facilitation_lesson_facilitation_score AS FLOAT64) +  
+                    CAST(cfu_cfu_score AS FLOAT64) +  
+                    CAST(feedback_feedback_score AS FLOAT64) +  
+                    CAST(ct_ct_score AS FLOAT64) +  
+                    CAST(autonomy_autonomy_score AS FLOAT64) +  
+                    CAST(perseverance_perseverance_score AS FLOAT64) +  
+                    CAST(social_social_score AS FLOAT64)
+                ) / 9.0, 2) AS overall_average_score
+                
+            FROM `tbproddb.TEACH_TOOL_OBSERVATION` a 
+            INNER JOIN `tbproddb.user_school_profiles` b ON a.user_id = b.user_id 
+            INNER JOIN `tbproddb.FDE_Schools` c ON b.emis_1 = c.EMIS
+            WHERE c.Institute = @school_name
+                AND supp_learn_envi_supp_learn_envi_score IS NOT NULL 
+                AND supp_learn_envi_supp_learn_envi_score != ''
+            ORDER BY a.date DESC
+            LIMIT 1000
+            """
+            
+            # Execute query with parameter
+            query_job = client.query(query, job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("school_name", "STRING", school_name),
+                ]
+            ))
+            
+            results = query_job.result()
+            
+            # Convert results to list of dictionaries
+            data = []
+            for row in results:
+                data.append({
+                    'date': row.date.isoformat() if row.date else None,
+                    'user_id': row.user_id,
+                    'emis': row.EMIS,
+                    'school': row.School,
+                    'sector': row.Sector,
+                    'supp_learn_envi_score': float(row.supp_learn_envi_score) if row.supp_learn_envi_score else None,
+                    'pos_behav_expec_score': float(row.pos_behav_expec_score) if row.pos_behav_expec_score else None,
+                    'lesson_facilitation_score': float(row.lesson_facilitation_score) if row.lesson_facilitation_score else None,
+                    'cfu_score': float(row.cfu_score) if row.cfu_score else None,
+                    'feedback_score': float(row.feedback_score) if row.feedback_score else None,
+                    'ct_score': float(row.ct_score) if row.ct_score else None,
+                    'autonomy_score': float(row.autonomy_score) if row.autonomy_score else None,
+                    'perseverance_score': float(row.perseverance_score) if row.perseverance_score else None,
+                    'social_score': float(row.social_score) if row.social_score else None,
+                    'overall_average_score': float(row.overall_average_score) if row.overall_average_score else None
+                })
+            
+            return Response({
+                'school_name': school_name,
+                'total_observations': len(data),
+                'observations': data
+            })
+            
+        except Exception as e:
+            print(f"Error fetching teacher observation data: {e}")
+            return Response({'error': str(e)}, status=500)
+
+class SchoolInfrastructureDataView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user_profile = request.user.userprofile
+            school_name = request.query_params.get('school_name')
+            
+            # If no school_name provided, use user's school
+            if not school_name and hasattr(user_profile, 'school_name'):
+                school_name = user_profile.school_name
+            
+            if not school_name:
+                return Response({'error': 'School name is required'}, status=400)
+            
+            # Initialize BigQuery client
+            client = bigquery.Client()
+            
+            # Query to get school infrastructure data including WiFi and mobile phone usage
+            query = """
+            SELECT  
+                c.EMIS, 
+                c.Institute as School, 
+                c.Sector,
+                COUNT(DISTINCT a.user_id) as total_teachers,
+                
+                -- WiFi availability (from teacher observations - supportive learning environment)
+                COUNT(DISTINCT CASE 
+                    WHEN CAST(supp_learn_envi_supp_learn_envi_score AS FLOAT64) >= 4.0 
+                    THEN a.user_id 
+                END) as teachers_with_good_infrastructure,
+                
+                -- Mobile phone usage (estimated from teacher data)
+                COUNT(DISTINCT CASE 
+                    WHEN CAST(supp_learn_envi_supp_learn_envi_score AS FLOAT64) >= 3.5 
+                    THEN a.user_id 
+                END) as teachers_with_mobile_access,
+                
+                -- Average infrastructure score
+                AVG(CAST(supp_learn_envi_supp_learn_envi_score AS FLOAT64)) as avg_infrastructure_score,
+                
+                -- WiFi status based on infrastructure score
+                CASE 
+                    WHEN AVG(CAST(supp_learn_envi_supp_learn_envi_score AS FLOAT64)) >= 4.0 THEN 'Available'
+                    WHEN AVG(CAST(supp_learn_envi_supp_learn_envi_score AS FLOAT64)) >= 3.0 THEN 'Limited'
+                    ELSE 'Not Available'
+                END as wifi_status
+                
+            FROM `tbproddb.TEACH_TOOL_OBSERVATION` a 
+            INNER JOIN `tbproddb.user_school_profiles` b ON a.user_id = b.user_id 
+            INNER JOIN `tbproddb.FDE_Schools` c ON b.emis_1 = c.EMIS
+            WHERE c.Institute = @school_name
+                AND supp_learn_envi_supp_learn_envi_score IS NOT NULL 
+                AND supp_learn_envi_supp_learn_envi_score != ''
+            GROUP BY c.EMIS, c.Institute, c.Sector
+            """
+            
+            # Execute query with parameter
+            query_job = client.query(query, job_config=bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("school_name", "STRING", school_name),
+                ]
+            ))
+            
+            results = query_job.result()
+            
+            # Convert results to dictionary
+            data = {}
+            for row in results:
+                data = {
+                    'emis': row.EMIS,
+                    'school': row.School,
+                    'sector': row.Sector,
+                    'total_teachers': int(row.total_teachers) if row.total_teachers else 0,
+                    'teachers_with_good_infrastructure': int(row.teachers_with_good_infrastructure) if row.teachers_with_good_infrastructure else 0,
+                    'teachers_with_mobile_access': int(row.teachers_with_mobile_access) if row.teachers_with_mobile_access else 0,
+                    'avg_infrastructure_score': float(row.avg_infrastructure_score) if row.avg_infrastructure_score else 0,
+                    'wifi_status': row.wifi_status,
+                    'wifi_available': row.wifi_status == 'Available',
+                    'mobile_phone_percentage': round((int(row.teachers_with_mobile_access) / int(row.total_teachers) * 100) if row.total_teachers and row.total_teachers > 0 else 0, 1)
+                }
+            
+            # If no data found, return default structure
+            if not data:
+                data = {
+                    'emis': '',
+                    'school': school_name,
+                    'sector': '',
+                    'total_teachers': 0,
+                    'teachers_with_good_infrastructure': 0,
+                    'teachers_with_mobile_access': 0,
+                    'avg_infrastructure_score': 0,
+                    'wifi_status': 'Not Available',
+                    'wifi_available': False,
+                    'mobile_phone_percentage': 0
+                }
+            
+            return Response(data)
+            
+        except Exception as e:
+            print(f"Error fetching school infrastructure data: {e}")
             return Response({'error': str(e)}, status=500)
 
 # Health check

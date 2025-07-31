@@ -15,7 +15,7 @@ class Conversation(models.Model):
     id = models.CharField(primary_key=True, max_length=64)  # UUID
     school_name = models.CharField(max_length=128)
     aeo = models.ForeignKey(User, related_name='aeo_conversations', on_delete=models.CASCADE)
-    principal = models.ForeignKey(User, related_name='principal_conversations', on_delete=models.CASCADE)
+    principal = models.ForeignKey(User, related_name='principal_conversations', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_message_at = models.DateTimeField(auto_now=True)
 

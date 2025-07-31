@@ -1,6 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import { apiService } from '../services/api';
+
+// Animations
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+`;
+
+const slideIn = keyframes`
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+`;
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -8,141 +31,213 @@ const ModalOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  animation: ${fadeIn} 0.3s ease-out;
 `;
 
 const ModalContent = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
+  background: ${props => props.theme === 'dark' ? '#1e293b' : '#ffffff'};
+  border-radius: 20px;
+  padding: 0;
   width: 90%;
-  max-width: 500px;
-  max-height: 80vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-width: 600px;
+  max-height: 85vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
+  animation: ${slideIn} 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
 `;
 
 const ModalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e9ecef;
+  padding: 24px 32px;
+  background: ${props => props.theme === 'dark' ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'};
+  border-bottom: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
 `;
 
 const ModalTitle = styled.h2`
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #212529;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
+  display: flex;
+  align-items: center;
+  gap: 12px;
 `;
 
 const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #6c757d;
-  padding: 0;
-  width: 30px;
-  height: 30px;
+  background: ${props => props.theme === 'dark' ? 'rgba(51, 65, 85, 0.5)' : 'rgba(248, 250, 252, 0.8)'};
+  border: 1px solid ${props => props.theme === 'dark' ? '#475569' : '#e2e8f0'};
+  border-radius: 12px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  transition: background-color 0.2s;
+  cursor: pointer;
+  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
+  font-size: 1.25rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
 
   &:hover {
-    background-color: #f8f9fa;
+    background: ${props => props.theme === 'dark' ? 'rgba(71, 85, 105, 0.8)' : 'rgba(241, 245, 249, 0.9)'};
+    color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
+    transform: scale(1.05);
   }
 `;
 
+const ModalBody = styled.div`
+  padding: 32px;
+  flex: 1;
+  overflow-y: auto;
+`;
+
 const SchoolInfo = styled.div`
-  background: #f8f9fa;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
+  background: ${props => props.theme === 'dark' ? 'rgba(51, 65, 85, 0.3)' : 'rgba(248, 250, 252, 0.8)'};
+  border: 1px solid ${props => props.theme === 'dark' ? '#475569' : '#e2e8f0'};
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  backdrop-filter: blur(10px);
 `;
 
 const SchoolName = styled.div`
-  font-weight: 600;
-  color: #212529;
-  margin-bottom: 4px;
+  font-weight: 700;
+  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 const PrincipalInfo = styled.div`
-  color: #6c757d;
-  font-size: 0.9rem;
+  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 const MessageForm = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const Label = styled.label`
+  font-weight: 600;
+  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
 
 const TextArea = styled.textarea`
   width: 100%;
-  min-height: 120px;
-  padding: 12px;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
+  min-height: 140px;
+  padding: 16px;
+  border: 2px solid ${props => props.theme === 'dark' ? '#475569' : '#e2e8f0'};
+  border-radius: 12px;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 1rem;
   resize: vertical;
+  background: ${props => props.theme === 'dark' ? '#334155' : '#ffffff'};
+  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
+  transition: all 0.2s ease;
   
   &:focus {
     outline: none;
-    border-color: #0a58ca;
-    box-shadow: 0 0 0 2px rgba(10, 88, 202, 0.1);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+  
+  &::placeholder {
+    color: ${props => props.theme === 'dark' ? '#94a3b8' : '#9ca3af'};
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 `;
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: 12px;
+  gap: 16px;
   justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
 `;
 
 const Button = styled.button`
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 500;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s;
-  border: 1px solid;
+  transition: all 0.2s ease;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+  justify-content: center;
   
-  ${({ variant }) => {
+  ${({ variant, theme }) => {
     if (variant === 'primary') {
       return `
-        background: #0a58ca;
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
         color: white;
-        border-color: #0a58ca;
+        border-color: #3b82f6;
         
-        &:hover {
-          background: #084298;
-          border-color: #084298;
+        &:hover:not(:disabled) {
+          background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+          border-color: #2563eb;
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
         }
         
         &:disabled {
-          background: #6c757d;
-          border-color: #6c757d;
+          background: ${theme === 'dark' ? '#475569' : '#9ca3af'};
+          border-color: ${theme === 'dark' ? '#475569' : '#9ca3af'};
           cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
         }
       `;
     } else {
       return `
-        background: white;
-        color: #6c757d;
-        border-color: #ced4da;
+        background: ${theme === 'dark' ? 'rgba(51, 65, 85, 0.5)' : 'rgba(248, 250, 252, 0.8)'};
+        color: ${theme === 'dark' ? '#e2e8f0' : '#1e293b'};
+        border-color: ${theme === 'dark' ? '#475569' : '#e2e8f0'};
         
-        &:hover {
-          background: #f8f9fa;
+        &:hover:not(:disabled) {
+          background: ${theme === 'dark' ? 'rgba(71, 85, 105, 0.8)' : 'rgba(241, 245, 249, 0.9)'};
+          transform: translateY(-1px);
+        }
+        
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
         }
       `;
     }
@@ -153,11 +248,10 @@ const LoadingSpinner = styled.div`
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid #f3f3f3;
-  border-top: 2px solid #0a58ca;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid #ffffff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-right: 8px;
   
   @keyframes spin {
     0% { transform: rotate(0deg); }
@@ -165,19 +259,62 @@ const LoadingSpinner = styled.div`
   }
 `;
 
-const ErrorMessage = styled.div`
-  color: #dc3545;
-  font-size: 0.9rem;
-  margin-top: 8px;
+const MessageContainer = styled.div`
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: ${slideIn} 0.3s ease-out;
 `;
 
-const SuccessMessage = styled.div`
-  color: #198754;
-  font-size: 0.9rem;
-  margin-top: 8px;
+const ErrorMessage = styled(MessageContainer)`
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #dc2626;
 `;
 
-const MessagingModal = ({ isOpen, onClose, schoolName, schoolData }) => {
+const SuccessMessage = styled(MessageContainer)`
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #059669;
+`;
+
+const RecipientAvatar = styled.div`
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 1.2rem;
+  margin-right: 16px;
+`;
+
+const RecipientDetails = styled.div`
+  flex: 1;
+`;
+
+const RecipientName = styled.div`
+  font-weight: 700;
+  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+`;
+
+const RecipientRole = styled.div`
+  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
+  font-size: 0.9rem;
+  font-weight: 500;
+`;
+
+const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'light', onMessageSent }) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -243,6 +380,11 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData }) => {
       setSuccess('Message sent successfully!');
       setMessage('');
       
+      // Call the callback to refresh conversations if provided
+      if (onMessageSent) {
+        onMessageSent();
+      }
+      
       // Close modal after a short delay
       setTimeout(() => {
         onClose();
@@ -265,58 +407,88 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData }) => {
     onClose();
   };
 
+  const getInitials = (name) => {
+    return name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??';
+  };
+
   if (!isOpen) return null;
 
   return (
     <ModalOverlay onClick={handleClose}>
-      <ModalContent onClick={(e) => e.stopPropagation()}>
-        <ModalHeader>
-          <ModalTitle>Send Message to {recipient?.role === 'AEO' ? 'AEO' : 'Principal'}</ModalTitle>
-          <CloseButton onClick={handleClose}>&times;</CloseButton>
+      <ModalContent theme={theme} onClick={(e) => e.stopPropagation()}>
+        <ModalHeader theme={theme}>
+          <ModalTitle theme={theme}>
+            💬 Send Message
+          </ModalTitle>
+          <CloseButton onClick={handleClose} theme={theme}>
+            ×
+          </CloseButton>
         </ModalHeader>
         
-        <SchoolInfo>
-          <SchoolName>{schoolName}</SchoolName>
-          <PrincipalInfo>
-            {loading ? 'Loading recipient information...' : 
-             recipient ? `${recipient.role}: ${recipient.name || recipient.school_name} (${recipient.username})` :
-             'Recipient information not available'}
-          </PrincipalInfo>
-        </SchoolInfo>
+        <ModalBody theme={theme}>
+          <SchoolInfo theme={theme}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <RecipientAvatar>
+                {recipient ? getInitials(recipient.name || recipient.username) : '??'}
+              </RecipientAvatar>
+              <RecipientDetails>
+                <RecipientName theme={theme}>
+                  {recipient?.name || recipient?.username || schoolName}
+                </RecipientName>
+                <RecipientRole theme={theme}>
+                  {loading ? 'Loading recipient information...' : 
+                   recipient ? `${recipient.role || 'Recipient'} • ${recipient.school_name || 'School'}` :
+                   'Recipient information not available'}
+                </RecipientRole>
+              </RecipientDetails>
+            </div>
+          </SchoolInfo>
 
-        <MessageForm onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="message" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-              Message:
-            </label>
-            <TextArea
-              id="message"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type your message to the principal..."
-              disabled={loading}
-            />
-          </div>
+          <MessageForm onSubmit={handleSubmit}>
+            <FormGroup>
+              <Label theme={theme}>
+                📝 Your Message
+              </Label>
+              <TextArea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Type your message here... Be clear and specific about what you need."
+                disabled={loading}
+                theme={theme}
+              />
+            </FormGroup>
 
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-          {success && <SuccessMessage>{success}</SuccessMessage>}
+            {error && (
+              <ErrorMessage>
+                ❌ {error}
+              </ErrorMessage>
+            )}
+            
+            {success && (
+              <SuccessMessage>
+                ✅ {success}
+              </SuccessMessage>
+            )}
 
-          <ButtonGroup>
-            <Button type="button" onClick={handleClose} disabled={loading}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" disabled={loading || !recipient}>
-              {loading ? (
-                <>
-                  <LoadingSpinner />
-                  Sending...
-                </>
-              ) : (
-                'Send Message'
-              )}
-            </Button>
-          </ButtonGroup>
-        </MessageForm>
+            <ButtonGroup theme={theme}>
+              <Button type="button" onClick={handleClose} disabled={loading} theme={theme}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" disabled={loading || !recipient} theme={theme}>
+                {loading ? (
+                  <>
+                    <LoadingSpinner />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    📤 Send Message
+                  </>
+                )}
+              </Button>
+            </ButtonGroup>
+          </MessageForm>
+        </ModalBody>
       </ModalContent>
     </ModalOverlay>
   );

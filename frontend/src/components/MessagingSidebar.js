@@ -1,262 +1,32 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import styled from 'styled-components';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { apiService, getCurrentUser, isAuthenticated } from '../services/api';
-
-const SidebarContainer = styled.div`
-  position: fixed;
-  right: ${props => props.isOpen ? '0' : '-400px'};
-  top: 0;
-  width: 400px;
-  height: 100vh;
-  background: ${props => props.theme === 'dark' ? '#1e293b' : '#ffffff'};
-  border-left: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-  box-shadow: ${props => props.isOpen ? '-4px 0 20px rgba(0,0,0,0.15)' : 'none'};
-  transition: right 0.3s ease;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-`;
-
-const SidebarHeader = styled.div`
-  padding: 20px 24px;
-  border-bottom: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-  background: ${props => props.theme === 'dark' ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'};
-`;
-
-const SidebarTitle = styled.h2`
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const CloseButton = styled.button`
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.2s;
-  
-  &:hover {
-    background: ${props => props.theme === 'dark' ? '#475569' : '#f1f5f9'};
-    color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-  }
-`;
-
-const SidebarContent = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-`;
-
-const TabsContainer = styled.div`
-  display: flex;
-  border-bottom: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-`;
-
-const Tab = styled.button`
-  flex: 1;
-  padding: 12px 16px;
-  background: ${props => props.active ? (props.theme === 'dark' ? '#475569' : '#f1f5f9') : 'transparent'};
-  border: none;
-  color: ${props => props.active ? (props.theme === 'dark' ? '#e2e8f0' : '#1e293b') : (props.theme === 'dark' ? '#94a3b8' : '#64748b')};
-  font-weight: ${props => props.active ? '600' : '500'};
-  cursor: pointer;
-  transition: all 0.2s;
-  border-bottom: 2px solid ${props => props.active ? '#3b82f6' : 'transparent'};
-  
-  &:hover {
-    background: ${props => props.active ? (props.theme === 'dark' ? '#475569' : '#f1f5f9') : (props.theme === 'dark' ? '#334155' : '#f8fafc')};
-  }
-`;
-
-const TabContent = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-`;
-
-const ConversationList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const ConversationItem = styled.div`
-  padding: 16px;
-  background: ${props => props.active ? (props.theme === 'dark' ? '#475569' : '#f1f5f9') : (props.theme === 'dark' ? '#334155' : '#ffffff')};
-  border: 1px solid ${props => props.active ? '#3b82f6' : (props.theme === 'dark' ? '#475569' : '#e2e8f0')};
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  &:hover {
-    background: ${props => props.theme === 'dark' ? '#475569' : '#f1f5f9'};
-    transform: translateY(-1px);
-  }
-`;
-
-const ConversationHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-`;
-
-const ConversationName = styled.div`
-  font-weight: 600;
-  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-  font-size: 1rem;
-`;
-
-const UnreadBadge = styled.span`
-  background: #ef4444;
-  color: white;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
-`;
-
-const ConversationMeta = styled.div`
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-size: 0.875rem;
-`;
-
-const MessageList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
-  max-height: 300px;
-  overflow-y: auto;
-`;
-
-const MessageItem = styled.div`
-  padding: 12px;
-  background: ${props => props.isOwn ? (props.theme === 'dark' ? '#475569' : '#dbeafe') : (props.theme === 'dark' ? '#334155' : '#f8fafc')};
-  border-radius: 8px;
-  border-left: 3px solid ${props => props.isOwn ? '#3b82f6' : '#10b981'};
-`;
-
-const MessageHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-`;
-
-const MessageSender = styled.div`
-  font-weight: 600;
-  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-  font-size: 0.875rem;
-`;
-
-const MessageTime = styled.div`
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-size: 0.75rem;
-`;
-
-const MessageText = styled.div`
-  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-  font-size: 0.875rem;
-  line-height: 1.4;
-`;
-
-const MessageForm = styled.form`
-  display: flex;
-  gap: 8px;
-  padding: 16px;
-  border-top: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-  background: ${props => props.theme === 'dark' ? '#1e293b' : '#ffffff'};
-`;
-
-const MessageInput = styled.input`
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid ${props => props.theme === 'dark' ? '#475569' : '#d1d5db'};
-  border-radius: 6px;
-  background: ${props => props.theme === 'dark' ? '#334155' : '#ffffff'};
-  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-  font-size: 0.875rem;
-  
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-  }
-  
-  &::placeholder {
-    color: ${props => props.theme === 'dark' ? '#94a3b8' : '#9ca3af'};
-  }
-`;
-
-const SendButton = styled.button`
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  &:hover {
-    background: #2563eb;
-  }
-  
-  &:disabled {
-    background: #9ca3af;
-    cursor: not-allowed;
-  }
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 40px 20px;
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-style: italic;
-`;
-
-const LoadingSpinner = styled.div`
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid #f3f3f3;
-  border-top: 2px solid #3b82f6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-right: 8px;
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
+import styles from './MessagingSidebar.module.css';
 
 const MessagingSidebar = ({ isOpen, onClose, theme = 'light' }) => {
   const [activeTab, setActiveTab] = useState('conversations');
   const [conversations, setConversations] = useState([]);
-  const [messages, setMessages] = useState({});
   const [selectedConversation, setSelectedConversation] = useState(null);
+  const [messages, setMessages] = useState({});
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
-  const [availableUsers, setAvailableUsers] = useState([]);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState([]);
   const [usersLoaded, setUsersLoaded] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const user = getCurrentUser();
+  const messageListRef = useRef(null);
+  
+  // Function to scroll to bottom of message list
+  const scrollToBottom = () => {
+    if (messageListRef.current) {
+      messageListRef.current.scrollTo({
+        top: messageListRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
   
   // Memoize authentication status to prevent unnecessary re-renders
   const authenticated = useMemo(() => isAuthenticated(), [user?.id]);
@@ -264,15 +34,6 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light' }) => {
   useEffect(() => {
     if (isOpen && user && authenticated && !conversationsLoaded && !loading) {
       loadConversations();
-    } else if (isOpen && (!user || !authenticated)) {
-      console.log('User not authenticated, redirecting to login...');
-      // You might want to redirect to login or show a message
-    }
-    
-    // Reset loaded states when sidebar is closed
-    if (!isOpen) {
-      setConversationsLoaded(false);
-      setUsersLoaded(false);
     }
   }, [isOpen, user?.id, authenticated, conversationsLoaded, loading]);
 
@@ -282,33 +43,102 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light' }) => {
     }
   }, [isOpen, user?.id, activeTab, usersLoaded, authenticated]);
 
+  // Debug effect to log message changes
+  useEffect(() => {
+    if (selectedConversation) {
+      console.log('Messages state changed for conversation:', selectedConversation.conversation_id);
+      console.log('Current messages:', messages[selectedConversation.conversation_id]);
+    }
+  }, [messages, selectedConversation]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messageListRef.current && selectedConversation) {
+      const messageList = messageListRef.current;
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => {
+        messageList.scrollTo({
+          top: messageList.scrollHeight,
+          behavior: 'smooth'
+        });
+        setShowScrollToBottom(false);
+      }, 100);
+    }
+  }, [messages, selectedConversation]);
+
+  // Add scroll event listener to detect when user scrolls up
+  useEffect(() => {
+    const messageList = messageListRef.current;
+    if (!messageList) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = messageList;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+      setShowScrollToBottom(!isAtBottom);
+    };
+
+    messageList.addEventListener('scroll', handleScroll);
+    return () => messageList.removeEventListener('scroll', handleScroll);
+  }, [selectedConversation]);
+
   const loadConversations = async () => {
-    if (loading || conversationsLoaded) return; // Prevent duplicate requests
+    if (loading || conversationsLoaded) return;
     
     try {
       setLoading(true);
-      console.log('Loading conversations...');
-      const conversationsData = await apiService.getConversations();
-      setConversations(conversationsData);
+      const conversationsData = await apiService.getUserConversations();
+      console.log('Conversations data:', conversationsData); // Debug log
+      
+      // Ensure conversationsData is an array
+      const validConversations = Array.isArray(conversationsData) ? conversationsData : [];
+      setConversations(validConversations);
       setConversationsLoaded(true);
     } catch (error) {
       console.error('Error loading conversations:', error);
+      setConversations([]);
+      setConversationsLoaded(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadMessagesForConversation = async (conversationId) => {
-    // Prevent loading if already loaded or currently loading
-    if (messages[conversationId] || loadingMessages) return;
+  const loadMessagesForConversation = async (conversationId, forceRefresh = false) => {
+    if (!forceRefresh && (messages[conversationId] || loadingMessages)) return;
     
     try {
       setLoadingMessages(true);
-      const messagesData = await apiService.getMessages(conversationId);
-      setMessages(prev => ({
+      console.log('Loading messages for conversation:', conversationId, 'forceRefresh:', forceRefresh);
+      
+      // Get messages for the conversation
+      const conversation = conversations.find(c => c.conversation_id === conversationId);
+      if (conversation) {
+        console.log('Found conversation:', conversation);
+        const messagesData = await apiService.getUserMessages(conversation.other_user.id);
+        console.log('Received messages data:', messagesData);
+        
+        setMessages(prev => {
+          const newMessages = {
         ...prev,
         [conversationId]: messagesData
-      }));
+          };
+          console.log('Updated messages state:', newMessages);
+          return newMessages;
+        });
+        
+        // Mark messages as read
+        await apiService.markMessagesRead(conversationId);
+        
+        // Update conversation unread count
+        setConversations(prev => 
+          prev.map(conv => 
+            conv.conversation_id === conversationId 
+              ? { ...conv, unread_count: 0 }
+              : conv
+          )
+        );
+      } else {
+        console.log('Conversation not found for ID:', conversationId);
+      }
     } catch (error) {
       console.error('Error loading messages:', error);
     } finally {
@@ -317,7 +147,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light' }) => {
   };
 
   const loadAvailableUsers = async () => {
-    if (usersLoaded || activeTab !== 'new') return; // Prevent duplicate requests and wrong tab
+    if (usersLoaded || activeTab !== 'new') return;
     
     try {
       let users = [];
@@ -329,26 +159,31 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light' }) => {
           id: aeo.id,
           name: aeo.username,
           role: 'AEO',
-          school_name: aeo.school_name || 'Unknown School'
+          school_name: aeo.school_name || 'Unknown School',
+          emis: aeo.emis || null
         }));
       } else if (user.role === 'AEO') {
         // AEO can message Principals and FDEs
         const principals = await apiService.getAllPrincipals();
         const fdes = await apiService.getAllFDEs?.() || [];
-        users = [
-          ...principals.map(principal => ({
+        
+        const principalUsers = principals.map(principal => ({
             id: principal.id,
             name: principal.display_name || principal.username,
             role: 'Principal',
-            school_name: principal.school_name
-          })),
-          ...fdes.map(fde => ({
+          school_name: principal.school_name,
+          emis: principal.emis || null
+        }));
+        
+        const fdeUsers = fdes.map(fde => ({
             id: fde.id,
             name: fde.username,
             role: 'FDE',
-            school_name: fde.school_name || 'Unknown School'
-          }))
-        ];
+          school_name: fde.school_name || 'Unknown School',
+          emis: fde.emis || null
+        }));
+        
+        users = [...principalUsers, ...fdeUsers];
       } else if (user.role === 'Principal') {
         // Principal can message AEOs
         const aeos = await apiService.getAllAEOs();
@@ -356,7 +191,8 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light' }) => {
           id: aeo.id,
           name: aeo.username,
           role: 'AEO',
-          school_name: aeo.school_name || 'Unknown School'
+          school_name: aeo.school_name || 'Unknown School',
+          emis: aeo.emis || null
         }));
       }
       
@@ -367,43 +203,54 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light' }) => {
     }
   };
 
+  const handleConversationClick = async (conversation) => {
+    setSelectedConversation(conversation);
+    if (!messages[conversation.conversation_id]) {
+      await loadMessagesForConversation(conversation.conversation_id);
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation) return;
 
     try {
       setSending(true);
+      console.log('Sending message:', {
+        school_name: selectedConversation.school_name,
+        message: newMessage.trim(),
+        receiver_id: selectedConversation.other_user.id,
+        conversation_id: selectedConversation.conversation_id
+      });
       
-      const conversation = conversations.find(c => c.id === selectedConversation);
-      if (!conversation) return;
-
-      // Get the receiver ID based on the conversation
-      let receiverId;
-      if (user.role === 'FDE') {
-        // FDE sending to AEO
-        receiverId = conversation.aeo?.id;
-      } else if (user.role === 'AEO') {
-        // AEO sending to Principal or FDE
-        receiverId = conversation.principal?.id || conversation.aeo?.id;
-      } else if (user.role === 'Principal') {
-        // Principal sending to AEO
-        receiverId = conversation.aeo?.id;
-      }
-
-      if (!receiverId) {
-        throw new Error('Receiver not found');
-      }
-
-      await apiService.sendMessage(
-        conversation.school_name,
+      const result = await apiService.sendMessage(
+        selectedConversation.school_name,
         newMessage.trim(),
-        receiverId
+        selectedConversation.other_user.id,
+        selectedConversation.conversation_id
       );
+      
+      console.log('Message sent successfully:', result);
 
-      // Refresh messages for this conversation
-      await loadMessagesForConversation(selectedConversation);
+      // Add a small delay to ensure the backend has processed the message
+      console.log('Waiting 500ms for backend processing...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Refresh messages for this conversation (force refresh to get new message)
+      console.log('Refreshing messages...');
+      await loadMessagesForConversation(selectedConversation.conversation_id, true);
+      
+      // Also refresh conversations list to update the latest message preview
+      console.log('Refreshing conversations...');
+      await loadConversations();
 
       setNewMessage('');
+      console.log('Message handling completed');
+      
+      // Scroll to bottom after sending message
+      setTimeout(() => {
+        scrollToBottom();
+      }, 200);
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Failed to send message. Please try again.');
@@ -412,296 +259,365 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light' }) => {
     }
   };
 
-  const createNewConversation = async (receiverId, receiverName, receiverRole, schoolName) => {
+  const handleStartConversation = async (userItem) => {
     try {
-      // Create a new conversation based on user roles
-      let conversationData;
-      
-      if (user.role === 'FDE') {
-        // FDE creating conversation with AEO
-        conversationData = {
-          aeo_id: receiverId,  // AEO is the receiver
-          principal_id: user.id,  // FDE is the principal
-          school_name: schoolName
-        };
-      } else if (user.role === 'AEO') {
-        if (receiverRole === 'Principal') {
-          // AEO creating conversation with Principal
-          conversationData = {
-            aeo_id: user.id,  // AEO is the sender
-            principal_id: receiverId,  // Principal is the receiver
-            school_name: schoolName
-          };
-        } else {
-          // AEO creating conversation with FDE
-          conversationData = {
-            aeo_id: user.id,  // AEO is the sender
-            principal_id: receiverId,  // FDE is the principal
-            school_name: schoolName
-          };
-        }
-      } else if (user.role === 'Principal') {
-        // Principal creating conversation with AEO
-        conversationData = {
-          aeo_id: receiverId,  // AEO is the receiver
-          principal_id: user.id,  // Principal is the sender
-          school_name: schoolName
-        };
-      }
-      
-      const newConversation = await apiService.createConversation(conversationData);
-      
-      // Add to conversations list
-      setConversations(prev => [...prev, newConversation]);
-      
-      // Select the new conversation
-      setSelectedConversation(newConversation.id);
-      
-      // Initialize empty messages array for this conversation
-      setMessages(prev => ({
-        ...prev,
-        [newConversation.id]: []
-      }));
-      
-      return newConversation.id;
-    } catch (error) {
-      console.error('Error creating conversation:', error);
-      throw error;
-    }
-  };
-
-  const handleStartConversation = async (receiverId, receiverName, receiverRole, schoolName) => {
-    try {
-      // Check if conversation already exists
-      const existingConversation = conversations.find(conv => 
-        conv.school_name === schoolName && 
-        ((user.role === 'FDE' && conv.aeo?.id === receiverId) ||
-         (user.role === 'AEO' && (conv.principal?.id === receiverId || conv.aeo?.id === receiverId)) ||
-         (user.role === 'Principal' && conv.aeo?.id === receiverId))
+      // Send initial message to create conversation
+      await apiService.sendMessage(
+        userItem.school_name,
+        'Hello! I would like to start a conversation.',
+        userItem.id
       );
 
-      if (existingConversation) {
-        setSelectedConversation(existingConversation.id);
-      } else {
-        await createNewConversation(receiverId, receiverName, receiverRole, schoolName);
-      }
+      // Reload conversations to show the new one
+      setConversationsLoaded(false);
+      await loadConversations();
+      
+      // Switch to conversations tab
+      setActiveTab('conversations');
     } catch (error) {
       console.error('Error starting conversation:', error);
       alert('Failed to start conversation. Please try again.');
     }
   };
 
+  const handleBackToConversations = () => {
+    setSelectedConversation(null);
+  };
+
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  const getConversationName = (conversation) => {
-    if (user.role === 'FDE') {
-      return `AEO: ${conversation.aeo?.username || 'Unknown AEO'}`;
-    } else if (user.role === 'AEO') {
-      if (conversation.principal?.username) {
-        return `Principal: ${conversation.principal.username}`;
-      } else {
-        return `FDE: ${conversation.aeo?.username || 'Unknown FDE'}`;
-      }
-    } else if (user.role === 'Principal') {
-      return `AEO: ${conversation.aeo?.username || 'Unknown AEO'}`;
-    }
-    return conversation.school_name;
-  };
-
-  const getConversationMeta = (conversation) => {
-    return `School: ${conversation.school_name}`;
-  };
-
-  const canSendMessage = () => {
-    if (!selectedConversation) return false;
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
     
-    const conversation = conversations.find(c => c.id === selectedConversation);
-    if (!conversation) return false;
-
-    // All users can send messages in existing conversations
-    return true;
+    if (diffInHours < 24) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffInHours < 48) {
+      return 'Yesterday';
+      } else {
+      return date.toLocaleDateString();
+    }
   };
 
+  const getInitials = (name) => {
+    return name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??';
+  };
+
+  const getMessageSenderInfo = (message) => {
+    const isOwn = message.sender.id === user.id;
+    
+    if (isOwn) {
+      return {
+        name: 'You',
+        role: user.role,
+        icon: '👤',
+        school: user.profile?.school_name || null,
+        emis: user.profile?.emis || null
+      };
+    } else {
+      return {
+        name: selectedConversation?.other_user?.username || message.sender?.username || 'Unknown',
+        role: selectedConversation?.other_user?.role || 'Unknown',
+        icon: selectedConversation?.other_user?.role === 'AEO' ? '👨‍🏫' : selectedConversation?.other_user?.role === 'Principal' ? '👨‍🏫' : '👨‍💼',
+        school: selectedConversation?.school_name,
+        emis: selectedConversation?.other_user?.emis
+      };
+    }
+  };
+
+  if (!isOpen) return null;
+
+  // Show message panel if conversation is selected
+  if (selectedConversation) {
+    return (
+      <div className={`${styles.sidebarContainer} ${isOpen ? styles.open : ''} ${styles[theme]}`}>
+        <div className={`${styles.messagePanel} ${styles[theme]}`}>
+          <div className={`${styles.messagePanelHeader} ${styles[theme]}`}>
+            <button 
+              className={`${styles.backButton} ${styles[theme]} ${styles.hoverScale}`}
+              onClick={handleBackToConversations}
+            >
+              ←
+            </button>
+            <div className={styles.userAvatar}>
+              {getInitials(selectedConversation.other_user?.username || 'Unknown')}
+            </div>
+            <div className={styles.userInfo}>
+              <h3 className={`${styles.messagePanelTitle} ${styles[theme]}`}>
+                {selectedConversation.other_user?.username || 'Unknown User'}
+              </h3>
+              <div className={`${styles.userRole} ${styles[theme]}`}>
+                <span className={`${styles.roleBadge} ${styles[theme]}`}>
+                  {selectedConversation.other_user?.role || 'Unknown'}
+                </span>
+                {selectedConversation.school_name && (
+                  <span>🏫 {selectedConversation.school_name}</span>
+                )}
+              </div>
+            </div>
+            <button 
+              className={`${styles.closeButton} ${styles[theme]} ${styles.hoverScale}`}
+              onClick={onClose}
+            >
+              ×
+            </button>
+          </div>
+
+          <div ref={messageListRef} className={`${styles.messageList} ${styles[theme]}`}>
+            {showScrollToBottom && (
+              <button
+                onClick={scrollToBottom}
+                className={`${styles.scrollToBottomButton} ${styles[theme]}`}
+                title="Scroll to latest message"
+              >
+                ↓ New Messages
+              </button>
+            )}
+            {loadingMessages ? (
+              <div className={`${styles.emptyState} ${styles[theme]}`}>
+                <div className={styles.loadingSpinner}></div>
+                Loading messages...
+              </div>
+            ) : messages[selectedConversation.conversation_id]?.length > 0 ? (
+              messages[selectedConversation.conversation_id].map(message => {
+                const senderInfo = getMessageSenderInfo(message);
+                const isOwn = message.sender.id === user.id;
+                return (
+                  <div
+                    key={message.id}
+                    className={`${styles.messageItem} ${isOwn ? styles.own : styles.other} ${styles[theme]}`}
+                  >
+                    <div className={styles.messageHeader}>
+                      <div className={`${styles.messageSender} ${styles[theme]}`}>
+                        {senderInfo.icon} {senderInfo.name}
+                        <span style={{ 
+                          fontSize: '0.8rem', 
+                          color: theme === 'dark' ? '#94a3b8' : '#64748b',
+                          marginLeft: '8px'
+                        }}>
+                          ({senderInfo.role})
+                        </span>
+                        {senderInfo.school && (
+                          <span style={{ 
+                            fontSize: '0.8rem', 
+                            color: theme === 'dark' ? '#94a3b8' : '#64748b',
+                            marginLeft: '8px'
+                          }}>
+                            • 🏫 {senderInfo.school}
+                          </span>
+                        )}
+                        {senderInfo.emis && (
+                          <span style={{ 
+                            fontSize: '0.75rem', 
+                            color: '#3b82f6',
+                            marginLeft: '8px',
+                            background: theme === 'dark' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+                            padding: '1px 6px',
+                            borderRadius: '4px'
+                          }}>
+                            EMIS: {senderInfo.emis}
+                          </span>
+                        )}
+                      </div>
+                      <div className={`${styles.messageTime} ${styles[theme]}`}>
+                        🕐 {formatTimestamp(message.timestamp)}
+                      </div>
+                    </div>
+                    <div className={`${styles.messageText} ${styles[theme]}`}>
+                      {message.message_text}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className={`${styles.emptyState} ${styles[theme]}`}>
+                <div className={styles.emptyStateIcon}>💭</div>
+                No messages yet. Start the conversation!
+              </div>
+            )}
+          </div>
+
+          <form className={`${styles.messageForm} ${styles[theme]}`} onSubmit={handleSendMessage}>
+            <input
+              type="text"
+              className={`${styles.messageInput} ${styles[theme]}`}
+              placeholder="Type your message..."
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              disabled={sending}
+            />
+            <button 
+              type="submit"
+              className={`${styles.sendButton} ${sending || !newMessage.trim() ? styles.disabled : ''} ${styles[theme]}`}
+              disabled={sending || !newMessage.trim()}
+            >
+              {sending ? (
+                <>
+                  <div className={styles.loadingSpinner}></div>
+                  Sending
+                </>
+              ) : (
+                <>
+                  📤 Send
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Show conversations list
   return (
-    <SidebarContainer isOpen={isOpen} theme={theme}>
-      <SidebarHeader theme={theme}>
-        <SidebarTitle theme={theme}>
+    <div className={`${styles.sidebarContainer} ${isOpen ? styles.open : ''} ${styles[theme]}`}>
+      <div className={`${styles.sidebarHeader} ${styles[theme]}`}>
+        <h2 className={`${styles.sidebarTitle} ${styles[theme]}`}>
           💬 Messages
-        </SidebarTitle>
-        <CloseButton onClick={onClose} theme={theme}>
+        </h2>
+        <button 
+          className={`${styles.closeButton} ${styles[theme]} ${styles.hoverScale}`}
+          onClick={onClose}
+        >
           ×
-        </CloseButton>
-      </SidebarHeader>
+        </button>
+      </div>
 
-      <SidebarContent>
-        <TabsContainer theme={theme}>
-          <Tab 
-            active={activeTab === 'conversations'} 
+      <div className={styles.sidebarContent}>
+        <div className={`${styles.tabsContainer} ${styles[theme]}`}>
+          <button 
+            className={`${styles.tab} ${activeTab === 'conversations' ? styles.active : ''} ${styles[theme]}`}
             onClick={() => setActiveTab('conversations')}
-            theme={theme}
           >
-            Conversations
-          </Tab>
-          <Tab 
-            active={activeTab === 'new'} 
+            💬 Conversations
+          </button>
+          <button 
+            className={`${styles.tab} ${activeTab === 'new' ? styles.active : ''} ${styles[theme]}`}
             onClick={() => setActiveTab('new')}
-            theme={theme}
           >
-            New Message
-          </Tab>
-        </TabsContainer>
+            ✨ New Message
+          </button>
+        </div>
 
-        <TabContent>
+        <div className={`${styles.tabContent} ${styles[theme]}`}>
           {activeTab === 'conversations' && (
             <>
               {loading ? (
-                <EmptyState theme={theme}>
-                  <LoadingSpinner />
+                <div className={`${styles.emptyState} ${styles[theme]}`}>
+                  <div className={styles.loadingSpinner}></div>
                   Loading conversations...
-                </EmptyState>
+                </div>
               ) : conversations.length === 0 ? (
-                <EmptyState theme={theme}>
+                <div className={`${styles.emptyState} ${styles[theme]}`}>
+                  <div className={styles.emptyStateIcon}>💬</div>
                   No conversations yet. Start a new conversation to begin messaging.
-                </EmptyState>
+                  <div style={{ fontSize: '0.9rem', marginTop: '8px' }}>
+                    Switch to "New Message" tab to start a conversation.
+                  </div>
+                </div>
               ) : (
-                <>
-                  <ConversationList>
-                    {conversations.map(conversation => (
-                      <ConversationItem
-                        key={conversation.id}
-                        active={selectedConversation === conversation.id}
-                        onClick={() => {
-                          // Prevent selecting the same conversation multiple times
-                          if (selectedConversation === conversation.id) return;
-                          
-                          setSelectedConversation(conversation.id);
-                          // Load messages for this conversation if not already loaded
-                          if (!messages[conversation.id]) {
-                            loadMessagesForConversation(conversation.id);
-                          }
-                        }}
-                        theme={theme}
+                <div className={styles.conversationList}>
+                  {conversations.map(conversation => {
+                    // Add null checks and debugging
+                    if (!conversation || !conversation.other_user) {
+                      console.warn('Invalid conversation data:', conversation);
+                      return null;
+                    }
+                    
+                    return (
+                      <div
+                        key={conversation.conversation_id}
+                        className={`${styles.conversationItem} ${styles[theme]} ${styles.hoverLift}`}
+                        onClick={() => handleConversationClick(conversation)}
                       >
-                        <ConversationHeader>
-                          <ConversationName theme={theme}>
-                            {getConversationName(conversation)}
-                          </ConversationName>
+                        <div className={styles.conversationHeader}>
+                          <div className={styles.userAvatar}>
+                            {getInitials(conversation.other_user.username || 'Unknown')}
+                          </div>
+                          <div className={styles.conversationInfo}>
+                            <div className={`${styles.conversationName} ${styles[theme]}`}>
+                              {conversation.other_user.username || 'Unknown User'}
+                            </div>
+                            <div className={`${styles.conversationMeta} ${styles[theme]}`}>
+                              <span className={`${styles.roleBadge} ${styles[theme]}`}>
+                                {conversation.other_user.role || 'Unknown'}
+                              </span>
+                              {conversation.school_name && (
+                                <span>🏫 {conversation.school_name}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className={styles.conversationActions}>
                           {conversation.unread_count > 0 && (
-                            <UnreadBadge>
+                              <div className={styles.unreadBadge}>
                               {conversation.unread_count}
-                            </UnreadBadge>
-                          )}
-                        </ConversationHeader>
-                        <ConversationMeta theme={theme}>
-                          {getConversationMeta(conversation)}
-                        </ConversationMeta>
-                      </ConversationItem>
-                    ))}
-                  </ConversationList>
-
-                  {selectedConversation && (
-                    <>
-                      <MessageList>
-                        {loadingMessages ? (
-                          <EmptyState theme={theme}>
-                            <LoadingSpinner />
-                            Loading messages...
-                          </EmptyState>
-                        ) : messages[selectedConversation]?.length > 0 ? (
-                          messages[selectedConversation].map(message => (
-                            <MessageItem
-                              key={message.id}
-                              isOwn={message.sender.id === user.id}
-                              theme={theme}
-                            >
-                              <MessageHeader>
-                                <MessageSender theme={theme}>
-                                  {message.sender.id === user.id ? 'You' : message.sender.username}
-                                </MessageSender>
-                                <MessageTime theme={theme}>
-                                  {formatTimestamp(message.timestamp)}
-                                </MessageTime>
-                              </MessageHeader>
-                              <MessageText theme={theme}>
-                                {message.message_text}
-                              </MessageText>
-                            </MessageItem>
-                          ))
-                        ) : (
-                          <EmptyState theme={theme}>
-                            No messages yet. Start the conversation!
-                          </EmptyState>
-                        )}
-                      </MessageList>
-
-                      {canSendMessage() && (
-                        <MessageForm onSubmit={handleSendMessage} theme={theme}>
-                          <MessageInput
-                            type="text"
-                            placeholder="Type your message..."
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            disabled={sending}
-                            theme={theme}
-                          />
-                          <SendButton disabled={sending || !newMessage.trim()}>
-                            {sending ? (
-                              <>
-                                <LoadingSpinner />
-                                Sending
-                              </>
-                            ) : (
-                              'Send'
+                              </div>
                             )}
-                          </SendButton>
-                        </MessageForm>
-                      )}
-                    </>
-                  )}
-                </>
+                            <div className={`${styles.messageTime} ${styles[theme]}`}>
+                              {formatTimestamp(conversation.latest_message?.timestamp || conversation.created_at)}
+                            </div>
+                          </div>
+                        </div>
+                        {conversation.latest_message?.text && (
+                          <div className={`${styles.messagePreview} ${styles[theme]}`}>
+                            <span className={styles.messagePreviewText}>
+                              {conversation.latest_message.is_own ? 'You: ' : ''}
+                              {conversation.latest_message.text}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </>
           )}
 
           {activeTab === 'new' && (
             <>
-              <ConversationList>
+              <div className={styles.userList}>
                 {availableUsers.map(userItem => (
-                  <ConversationItem
+                  <div
                     key={userItem.id}
-                    onClick={() => handleStartConversation(
-                      userItem.id, 
-                      userItem.name, 
-                      userItem.role, 
-                      userItem.school_name
-                    )}
-                    theme={theme}
+                    className={`${styles.userItem} ${styles[theme]} ${styles.hoverLift}`}
+                    onClick={() => handleStartConversation(userItem)}
                   >
-                    <ConversationHeader>
-                      <ConversationName theme={theme}>
-                        {userItem.role}: {userItem.name}
-                      </ConversationName>
-                    </ConversationHeader>
-                    <ConversationMeta theme={theme}>
-                      School: {userItem.school_name}
-                    </ConversationMeta>
-                  </ConversationItem>
+                    <div className={styles.userHeader}>
+                      <div className={styles.userAvatar}>
+                        {getInitials(userItem.name)}
+                      </div>
+                      <div className={styles.userInfo}>
+                        <div className={`${styles.userName} ${styles[theme]}`}>
+                          {userItem.role === 'AEO' ? '👨‍🏫' : userItem.role === 'Principal' ? '👨‍🏫' : '👨‍💼'} {userItem.name}
+                        </div>
+                        <div className={`${styles.userRole} ${styles[theme]}`}>
+                          <span className={`${styles.roleBadge} ${styles[theme]}`}>{userItem.role}</span>
+                          {userItem.school_name && (
+                            <span>🏫 {userItem.school_name}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {userItem.emis && (
+                      <div className={`${styles.emisNumber} ${styles[theme]}`}>
+                        EMIS: {userItem.emis}
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </ConversationList>
+              </div>
               
               {availableUsers.length === 0 && (
-                <EmptyState theme={theme}>
+                <div className={`${styles.emptyState} ${styles[theme]}`}>
+                  <div className={styles.emptyStateIcon}>👥</div>
                   No users available to message.
-                </EmptyState>
+                </div>
               )}
             </>
           )}
-        </TabContent>
-      </SidebarContent>
-    </SidebarContainer>
+        </div>
+      </div>
+    </div>
   );
 };
 

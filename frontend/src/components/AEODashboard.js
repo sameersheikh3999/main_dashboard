@@ -91,27 +91,54 @@ const ThemeToggleBtn = styled.button`
 `;
 
 const MessagingBtn = styled.button`
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 10px 16px;
+  border-radius: 12px;
+  padding: 12px 20px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
+  gap: 10px;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
   
   &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+    
+    &::before {
+      left: 100%;
+    }
+  }
+  
+  &:active {
+    transform: translateY(0);
   }
   
   svg {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
+    transition: transform 0.2s ease;
+  }
+  
+  &:hover svg {
+    transform: scale(1.1);
   }
 `;
 
@@ -249,19 +276,19 @@ const SchoolsList = styled.div`
 const SchoolItem = styled.li`
   padding: 12px 16px;
   margin-bottom: 8px;
-  background: ${props => props.inactive
-    ? 'linear-gradient(90deg, #ef4444 0%, #f59e0b 100%)'
-    : props.theme === 'dark'
-      ? 'rgba(51, 65, 85, 0.5)'
-      : 'rgba(248, 250, 252, 0.8)'};
+  border: 1px solid ${props => props.inactive ? 'red' : 'transparent'};
   border-radius: 8px;
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid ${props => props.inactive
+    ? props.theme === 'dark'
+      ? '#ef4444'
+      : '#e2e8f0'
+    : 'transparent'};
   transition: all 0.2s ease;
-  color: ${props => props.inactive ? '#fff' : 'inherit'};
+  color: ${props => props.inactive ? '#333' : 'inherit'};
   
   &:hover {
     transform: translateX(4px);
-    box-shadow: ${props => props.theme === 'dark' ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)'};
+    box-shadow: ${props => props.theme === 'dark' ? '0 4px 12px rgba(255, 0, 0, 0.3)' : '0 4px 12px rgba(0,0,0,0.1)'};
   }
   
   display: flex;
@@ -278,7 +305,7 @@ const StatusTag = styled.span`
   font-size: 0.85rem;
   font-weight: 700;
   color: #fff;
-  background: ${props => props.active ? 'linear-gradient(90deg, #10b981 0%, #22d3ee 100%)' : 'linear-gradient(90deg, #ef4444 0%, #f59e0b 100%)'};
+  background: ${props => props.active ? 'linear-gradient(90deg, #10b981 0%, #22d3ee 100%)' : 'red'};
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   letter-spacing: 0.5px;
 `;
@@ -305,24 +332,56 @@ const LoadingSpinner = styled.div`
 `;
 
 const AskPrincipalButton = styled.button`
-  background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-weight: 700;
-  font-size: 0.95rem;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
-  margin-left: 18px;
-  box-shadow: 0 2px 8px rgba(59,130,246,0.08);
-  transition: all 0.2s;
+  margin-left: 16px;
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.2);
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
+  
   &:hover {
-    background: linear-gradient(90deg, #2563eb 0%, #0ea5e9 100%);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(59,130,246,0.18);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+    
+    &::before {
+      left: 100%;
+    }
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s ease;
+  }
+  
+  &:hover svg {
+    transform: scale(1.1);
   }
 `;
 
@@ -414,6 +473,12 @@ const AEODashboard = ({ onLogout }) => {
 
   const toggleMessagingSidebar = () => {
     setMessagingSidebarOpen(!messagingSidebarOpen);
+  };
+
+  const handleMessageSent = () => {
+    // This will be called when a message is sent through the modal
+    // The MessagingSidebar will handle its own refresh
+    console.log('Message sent successfully');
   };
 
   const getPerformanceColor = (score) => {
@@ -630,6 +695,8 @@ const AEODashboard = ({ onLogout }) => {
         onClose={() => setMessagingModal({ ...messagingModal, isOpen: false })}
         schoolName={messagingModal.schoolName}
         schoolData={{ id: messagingModal.principalId, name: messagingModal.schoolName }}
+        theme={theme}
+        onMessageSent={handleMessageSent}
       />
 
       {/* Messaging Sidebar */}

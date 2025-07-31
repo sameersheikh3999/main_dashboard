@@ -16,9 +16,19 @@ class UserSerializer(serializers.ModelSerializer):
 class ConversationSerializer(serializers.ModelSerializer):
     aeo = UserSerializer()
     principal = UserSerializer()
+    emis = serializers.SerializerMethodField()
+    
     class Meta:
         model = Conversation
-        fields = ['id', 'school_name', 'aeo', 'principal', 'created_at', 'last_message_at']
+        fields = ['id', 'school_name', 'aeo', 'principal', 'created_at', 'last_message_at', 'emis']
+    
+    def get_emis(self, obj):
+        # Try to get EMIS from AEO's profile first, then from principal's profile
+        if hasattr(obj.aeo, 'userprofile') and obj.aeo.userprofile.emis:
+            return obj.aeo.userprofile.emis
+        elif hasattr(obj.principal, 'userprofile') and obj.principal.userprofile.emis:
+            return obj.principal.userprofile.emis
+        return None
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer()

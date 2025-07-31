@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { apiService, getCurrentUser } from '../services/api';
 import MessagingSidebar from './MessagingSidebar';
+import TeacherObservations from './TeacherObservations';
+import SchoolInfrastructure from './SchoolInfrastructure';
 
 const Container = styled.div`
   max-width: 1400px;
@@ -592,6 +594,22 @@ const PrincipalDashboard = ({ onLogout }) => {
             })
           )}
         </TeachersList>
+      </TeachersSection>
+
+      {/* School Infrastructure Section */}
+      <TeachersSection>
+        <SectionTitle>
+          🏫 School Infrastructure
+        </SectionTitle>
+        <SchoolInfrastructure schoolName={user?.school_name} />
+      </TeachersSection>
+
+      {/* Teacher Observations Section */}
+      <TeachersSection>
+        <SectionTitle>
+          📊 Teacher Observations
+        </SectionTitle>
+        <TeacherObservations schoolName={user?.school_name} />
       </TeachersSection>
 
       {/* Messages Section */}

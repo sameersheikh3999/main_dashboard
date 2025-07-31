@@ -18,7 +18,7 @@ const getAuthHeaders = () => {
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
-  if (!response.ok) {
+  if (!response.ok && response.status !== 201) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
   }
@@ -111,15 +111,32 @@ export const apiService = {
     return retryRequest(() => makeRequest(`${API_BASE_URL}/conversations/${conversationId}/messages/`));
   },
 
+  getUserMessages: async (userId) => {
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/users/${userId}/messages/`));
+  },
+
+  getUserConversations: async () => {
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/conversations/`));
+  },
+
+  markMessagesRead: async (conversationId) => {
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/conversations/${conversationId}/mark-read/`, {
+        method: 'POST',
+      })
+    );
+  },
+
   // Messaging
-  sendMessage: async (schoolName, messageText, receiverId) => {
+  sendMessage: async (schoolName, messageText, receiverId, conversationId = null) => {
     return retryRequest(() => 
       makeRequest(`${API_BASE_URL}/messages/`, {
         method: 'POST',
         body: JSON.stringify({
           school_name: schoolName,
           message_text: messageText,
-          receiverId: receiverId
+          receiverId: receiverId,
+          conversation_id: conversationId
         }),
       })
     );
@@ -194,6 +211,24 @@ export const apiService = {
 
   getSchoolTeachersData: async () => {
     return retryRequest(() => makeRequest(`${API_BASE_URL}/school-teachers/`));
+  },
+
+  getTeacherObservations: async (schoolName) => {
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/teacher-observations/?school_name=${encodeURIComponent(schoolName)}`)
+    );
+  },
+
+  getSchoolInfrastructure: async (schoolName) => {
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/school-infrastructure/?school_name=${encodeURIComponent(schoolName)}`)
+    );
+  },
+
+  getEnhancedSchools: async () => {
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/enhanced-schools/`)
+    );
   }
 };
 
