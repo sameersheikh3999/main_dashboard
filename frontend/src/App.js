@@ -8,6 +8,7 @@ import MessagingModal from './components/MessagingModal';
 import Login from './components/Login';
 import PrincipalDashboard from './components/PrincipalDashboard';
 import FDEDashboard from './components/FDEDashboard';
+import AEODashboard from './components/AEODashboard';
 import Register from './components/Register';
 import { isAuthenticated, getCurrentUser, logout, apiService } from './services/api';
 
@@ -740,6 +741,11 @@ function App() {
   // Show FDE Dashboard if user is FDE
   if (user && user.profile?.role === 'FDE') {
     return <FDEDashboard onLogout={handleLogout} />;
+  }
+
+  // Show AEO Dashboard if user is AEO
+  if (user && user.profile?.role === 'AEO') {
+    return <AEODashboard onLogout={handleLogout} />;
   }
 
   return (

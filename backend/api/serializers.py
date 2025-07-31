@@ -5,7 +5,7 @@ from .models import UserProfile, Conversation, Message
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['role', 'school_name']
+        fields = ['role', 'school_name', 'sector', 'emis']
 
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(source='userprofile', read_only=True)

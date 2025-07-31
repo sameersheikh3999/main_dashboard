@@ -177,7 +177,9 @@ function Login({ onLogin }) {
           </FormGroup>
           
           <FormGroup>
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">
+              {formData.role === 'Principal' ? 'EMIS Number' : 'Username'}
+            </Label>
             <Input
               type="text"
               id="username"
@@ -187,6 +189,7 @@ function Login({ onLogin }) {
               placeholder={
                 formData.role === 'AEO' ? 'aeo' : 
                 formData.role === 'FDE' ? 'fde' : 
+                formData.role === 'Principal' ? '547 (EMIS number)' : 
                 'principal_school_name'
               }
               required
@@ -201,7 +204,10 @@ function Login({ onLogin }) {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="Enter password"
+              placeholder={
+                formData.role === 'Principal' ? 'pass123 (default password)' : 
+                'Enter password'
+              }
               required
             />
           </FormGroup>
@@ -217,8 +223,9 @@ function Login({ onLogin }) {
           <DemoTitle>Demo Credentials:</DemoTitle>
           <DemoItem><strong>AEO:</strong> username: aeo, password: aeo123</DemoItem>
           <DemoItem><strong>FDE:</strong> username: fde, password: fde123</DemoItem>
-          <DemoItem><strong>Principal:</strong> username: principal_al_noor_elementary, password: principal123</DemoItem>
-          <DemoItem><strong>Other Principals:</strong> principal_green_valley_high, principal_sunrise_primary, principal_heritage_middle</DemoItem>
+          <DemoItem><strong>Principal (EMIS):</strong> EMIS: 547, password: pass123 (IMCB Mohra Nagial)</DemoItem>
+          <DemoItem><strong>Principal (Username):</strong> username: principal_al_noor_elementary, password: principal123</DemoItem>
+          <DemoItem><strong>Note:</strong> Principals can login using their EMIS number or username</DemoItem>
         </DemoCredentials>
       </LoginCard>
     </LoginContainer>

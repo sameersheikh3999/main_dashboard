@@ -193,13 +193,8 @@ const BigQueryDashboard = () => {
   const loadFilterOptions = async () => {
     try {
       const options = await apiService.getBigQueryFilterOptions();
-      const formattedOptions = {
-        sectors: [...new Set(options.map(item => item.Sector).filter(Boolean))],
-        schools: [...new Set(options.map(item => item.School).filter(Boolean))],
-        grades: [...new Set(options.map(item => item.Grade).filter(Boolean))],
-        subjects: [...new Set(options.map(item => item.Subject).filter(Boolean))]
-      };
-      setFilterOptions(formattedOptions);
+      // The API now returns an object with arrays, not an array of objects
+      setFilterOptions(options);
     } catch (error) {
       console.error('Error loading filter options:', error);
     }
