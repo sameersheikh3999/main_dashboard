@@ -435,15 +435,15 @@ const SchoolsList = styled.div`
 const SchoolItem = styled.li`
   padding: 12px 16px;
   margin-bottom: 8px;
-  background: ${props => props.inactive
-    ? 'linear-gradient(90deg, #ef4444 0%, #f59e0b 100%)'
-    : props.theme === 'dark' 
-      ? 'rgba(51, 65, 85, 0.5)' 
-      : 'rgba(248, 250, 252, 0.8)'};
+  border: 1px solid ${props => props.inactive ? 'red' : 'transparent'};
   border-radius: 8px;
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid ${props => props.inactive
+    ? props.theme === 'dark'
+      ? '#ef4444'
+      : '#e2e8f0'
+    : 'transparent'};
   transition: all 0.2s ease;
-  color: ${props => props.inactive ? '#fff' : 'inherit'};
+  color: ${props => props.inactive ? '#333' : 'inherit'};
   
   &:hover {
     background: ${props => props.inactive
@@ -452,6 +452,7 @@ const SchoolItem = styled.li`
         ? 'rgba(59, 130, 246, 0.1)' 
         : 'rgba(59, 130, 246, 0.05)'};
     transform: translateX(4px);
+    color: ${props => props.inactive ? '#fff' : 'inherit'};
   }
 `;
 
@@ -504,10 +505,36 @@ const AskAEOButton = styled.button`
   display: flex;
   align-items: center;
   gap: 6px;
+  position: relative;
   &:hover {
     background: linear-gradient(90deg, #2563eb 0%, #0ea5e9 100%);
     transform: translateY(-2px);
     box-shadow: 0 6px 18px rgba(59,130,246,0.18);
+  }
+`;
+
+const MessageCountBadge = styled.div`
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  animation: ${props => props.hasUnread ? 'pulse 2s infinite' : 'none'};
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
   }
 `;
 
@@ -526,23 +553,49 @@ const FDEDashboard = ({ onLogout }) => {
     type: ''
   });
   const [messagingSidebarOpen, setMessagingSidebarOpen] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   // Define the 6 sectors
   const sectorList = ['B.K', 'Nilore', 'Sihala', 'Tarnol', 'Urban-I', 'Urban-II'];
 
-  // Map sector to AEO user ID (update as per your DB)
-  const sectorAEOMap = {
-    'Nilore': 12,
-    'Tarnol': 13,
-    'Urban-I': 14,
-    'Urban-II': 15,
-    'B.K': 16,
-    'Sihala': 17,
-  };
+  // Map sector to AEO data (will be populated dynamically)
+  const [sectorAEOMap, setSectorAEOMap] = useState({});
 
   useEffect(() => {
     loadData();
+    loadAEOData();
+    loadUnreadMessageCount();
   }, []);
+
+  const loadUnreadMessageCount = async () => {
+    try {
+      const countData = await apiService.getUnreadMessageCount();
+      setUnreadMessageCount(countData.unread_count || 0);
+    } catch (error) {
+      console.error('Error loading unread message count:', error);
+      setUnreadMessageCount(0);
+    }
+  };
+
+  const loadAEOData = async () => {
+    try {
+      const aeoMap = {};
+      for (const sector of sectorList) {
+        try {
+          const aeos = await apiService.getAEOsBySector(sector);
+          if (aeos && aeos.length > 0) {
+            // Use the first AEO for the sector
+            aeoMap[sector] = aeos[0];
+          }
+        } catch (error) {
+          console.error(`Error loading AEO data for sector ${sector}:`, error);
+        }
+      }
+      setSectorAEOMap(aeoMap);
+    } catch (error) {
+      console.error('Error loading AEO data:', error);
+    }
+  };
 
   useEffect(() => {
     // Filter schools based on selected sector
@@ -588,6 +641,8 @@ const FDEDashboard = ({ onLogout }) => {
     // This will be called when a message is sent through the modal
     // The MessagingSidebar will handle its own refresh
     console.log('Message sent successfully');
+    // Refresh unread message count
+    loadUnreadMessageCount();
   };
 
   // Prepare sector distribution for PieChart
@@ -645,6 +700,11 @@ const FDEDashboard = ({ onLogout }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/>
               </svg>
               Messages
+              {unreadMessageCount > 0 && (
+                <MessageCountBadge hasUnread={unreadMessageCount > 0}>
+                  {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                </MessageCountBadge>
+              )}
             </MessagingBtn>
             <ThemeToggleBtn theme={theme} onClick={toggleTheme}>
               {theme === 'light' ? (
@@ -764,7 +824,22 @@ const FDEDashboard = ({ onLogout }) => {
                     <PerformanceLabel theme={theme}>
                       {index === 0 ? 'Lowest' : index === sectorPerformance.length - 1 ? 'Highest' : 'Medium'}
                     </PerformanceLabel>
-                    <AskAEOButton onClick={() => setMessagingModal({ isOpen: true, aeoId: sectorAEOMap[sector.name] || null, aeoName: sector.name, type: 'sector' })}>
+                    <AskAEOButton 
+                      onClick={() => {
+                        const aeoData = sectorAEOMap[sector.name];
+                        if (aeoData) {
+                          setMessagingModal({ 
+                            isOpen: true, 
+                            aeoId: aeoData.id, 
+                            aeoName: aeoData.display_name, 
+                            type: 'sector' 
+                          });
+                        } else {
+                          alert(`No AEO found for ${sector.name} sector`);
+                        }
+                      }}
+                      disabled={!sectorAEOMap[sector.name]}
+                    >
                       <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/></svg>
                       Ask AEO
                     </AskAEOButton>
@@ -840,6 +915,7 @@ const FDEDashboard = ({ onLogout }) => {
         isOpen={messagingSidebarOpen}
         onClose={() => setMessagingSidebarOpen(false)}
         theme={theme}
+        onMessagesRead={loadUnreadMessageCount}
       />
     </DashboardContainer>
   );

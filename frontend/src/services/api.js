@@ -166,6 +166,16 @@ export const apiService = {
     return retryRequest(() => makeRequest(`${API_BASE_URL}/health/`));
   },
 
+  // Message count
+  getUnreadMessageCount: async () => {
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/messages/unread-count/`));
+  },
+
+  // AEOs by sector
+  getAEOsBySector: async (sector) => {
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/aeos/by-sector/?sector=${encodeURIComponent(sector)}`));
+  },
+
   // BigQuery endpoints
   getBigQueryTeacherData: async (filters = {}) => {
     const params = new URLSearchParams();

@@ -105,7 +105,6 @@ const MessagingBtn = styled.button`
   font-size: 0.95rem;
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
   position: relative;
-  overflow: hidden;
   
   &::before {
     content: '';
@@ -139,6 +138,31 @@ const MessagingBtn = styled.button`
   
   &:hover svg {
     transform: scale(1.1);
+  }
+`;
+
+const MessageCountBadge = styled.div`
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  animation: ${props => props.hasUnread ? 'pulse 2s infinite' : 'none'};
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
   }
 `;
 
@@ -399,6 +423,7 @@ const AEODashboard = ({ onLogout }) => {
   const [messagingSidebarOpen, setMessagingSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [userSector, setUserSector] = useState('');
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   useEffect(() => {
     // Get current user info
@@ -407,7 +432,18 @@ const AEODashboard = ({ onLogout }) => {
     setUser(currentUser);
     setUserSector(currentUser?.profile?.sector || '');
     loadData();
+    loadUnreadMessageCount();
   }, []);
+
+  const loadUnreadMessageCount = async () => {
+    try {
+      const countData = await apiService.getUnreadMessageCount();
+      setUnreadMessageCount(countData.unread_count || 0);
+    } catch (error) {
+      console.error('Error loading unread message count:', error);
+      setUnreadMessageCount(0);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -479,6 +515,8 @@ const AEODashboard = ({ onLogout }) => {
     // This will be called when a message is sent through the modal
     // The MessagingSidebar will handle its own refresh
     console.log('Message sent successfully');
+    // Refresh unread message count
+    loadUnreadMessageCount();
   };
 
   const getPerformanceColor = (score) => {
@@ -516,6 +554,11 @@ const AEODashboard = ({ onLogout }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/>
               </svg>
               Messages
+              {unreadMessageCount > 0 && (
+                <MessageCountBadge hasUnread={unreadMessageCount > 0}>
+                  {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                </MessageCountBadge>
+              )}
             </MessagingBtn>
             <ThemeToggleBtn theme={theme} onClick={toggleTheme}>
               {theme === 'light' ? (
@@ -694,7 +737,7 @@ const AEODashboard = ({ onLogout }) => {
         isOpen={messagingModal.isOpen}
         onClose={() => setMessagingModal({ ...messagingModal, isOpen: false })}
         schoolName={messagingModal.schoolName}
-        schoolData={{ id: messagingModal.principalId, name: messagingModal.schoolName }}
+        schoolData={null}
         theme={theme}
         onMessageSent={handleMessageSent}
       />
@@ -704,6 +747,7 @@ const AEODashboard = ({ onLogout }) => {
         isOpen={messagingSidebarOpen}
         onClose={() => setMessagingSidebarOpen(false)}
         theme={theme}
+        onMessagesRead={loadUnreadMessageCount}
       />
     </DashboardContainer>
   );

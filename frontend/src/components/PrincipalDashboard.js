@@ -369,6 +369,7 @@ const LoadingSpinner = styled.div`
 
 const PrincipalDashboard = ({ onLogout }) => {
   const [conversations, setConversations] = useState([]);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [messages, setMessages] = useState({});
   const [schoolData, setSchoolData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -380,8 +381,19 @@ const PrincipalDashboard = ({ onLogout }) => {
   useEffect(() => {
     if (user) {
       loadDashboardData();
+      loadUnreadMessageCount();
     }
   }, [user]);
+
+  const loadUnreadMessageCount = async () => {
+    try {
+      const countData = await apiService.getUnreadMessageCount();
+      setUnreadMessageCount(countData.unread_count || 0);
+    } catch (error) {
+      console.error('Error loading unread message count:', error);
+      setUnreadMessageCount(0);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {

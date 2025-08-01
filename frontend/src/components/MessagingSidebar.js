@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { apiService, getCurrentUser, isAuthenticated } from '../services/api';
 import styles from './MessagingSidebar.module.css';
 
-const MessagingSidebar = ({ isOpen, onClose, theme = 'light' }) => {
+const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) => {
   const [activeTab, setActiveTab] = useState('conversations');
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -125,8 +125,13 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light' }) => {
           return newMessages;
         });
         
-        // Mark messages as read
-        await apiService.markMessagesRead(conversationId);
+              // Mark messages as read
+      await apiService.markMessagesRead(conversationId);
+      
+      // Call the callback to update unread count in parent component
+      if (onMessagesRead) {
+        onMessagesRead();
+      }
         
         // Update conversation unread count
         setConversations(prev => 

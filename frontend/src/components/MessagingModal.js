@@ -325,14 +325,14 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
     if (isOpen && schoolName) {
       // Check if this is an AEO message (schoolData has id and name)
       if (schoolData && schoolData.id && schoolData.name) {
-        // This is an AEO message
+        // This is an AEO message (FDE to AEO)
         setRecipient({
           id: schoolData.id,
           name: schoolData.name,
           role: 'AEO'
         });
       } else {
-        // This is a Principal message
+        // This is a Principal message (AEO to Principal)
         fetchPrincipal();
       }
     }
@@ -372,8 +372,8 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
       setError('');
       setSuccess('');
       
-      // For AEO messages, use a generic school name since AEOs don't have specific schools
-      const schoolNameForMessage = recipient.role === 'AEO' ? 'FDE to AEO' : schoolName;
+      // For AEO messages (FDE to AEO), use the AEO's sector as school name
+      const schoolNameForMessage = recipient.role === 'AEO' ? `${recipient.name} Sector` : schoolName;
       
       await apiService.sendMessage(schoolNameForMessage, message.trim(), recipient.id);
       

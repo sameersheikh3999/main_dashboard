@@ -37,4 +37,8 @@ urlpatterns = [
     # Data sync management
     path('data-sync/status/', views.DataSyncStatusView.as_view(), name='data-sync-status'),
     path('data-sync/trigger/', views.TriggerDataSyncView.as_view(), name='trigger-data-sync'),
+    # Message count
+    path('messages/unread-count/', views.UnreadMessageCountView.as_view(), name='unread-message-count'),
+    # AEOs by sector
+    path('aeos/by-sector/', views.AEOsBySectorView.as_view(), name='aeos-by-sector'),
 ]

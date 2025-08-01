@@ -134,6 +134,15 @@ class UserConversationsView(APIView):
                     is_read=False
                 ).count()
                 
+                # Safely get userprofile data
+                try:
+                    other_user_profile = other_user.userprofile
+                    other_user_school_name = other_user_profile.school_name if other_user_profile else None
+                    other_user_emis = other_user_profile.emis if other_user_profile else None
+                except:
+                    other_user_school_name = None
+                    other_user_emis = None
+                
                 conversation_data.append({
                     'conversation_id': conversation.id,
                     'school_name': conversation.school_name,
@@ -141,8 +150,8 @@ class UserConversationsView(APIView):
                         'id': other_user.id,
                         'username': other_user.username,
                         'role': other_user_role,
-                        'school_name': getattr(other_user.userprofile, 'school_name', None),
-                        'emis': getattr(other_user.userprofile, 'emis', None),
+                        'school_name': other_user_school_name,
+                        'emis': other_user_emis,
                     },
                     'latest_message': {
                         'text': latest_message.message_text if latest_message else '',
@@ -1164,3 +1173,52 @@ class RegisterView(APIView):
                 'user': user_data
             }, status=201)
         return Response(serializer.errors, status=400)
+
+class UnreadMessageCountView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Get unread messages count for the current user
+            unread_count = Message.objects.filter(
+                receiver=request.user,
+                is_read=False
+            ).count()
+            
+            return Response({
+                'unread_count': unread_count
+            })
+        except Exception as e:
+            print(f"Error getting unread message count: {e}")
+            return Response({'error': f'Error getting unread message count: {str(e)}'}, status=500)
+
+class AEOsBySectorView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            sector = request.query_params.get('sector')
+            if not sector:
+                return Response({'error': 'sector parameter is required'}, status=400)
+            
+            # Get AEOs for the specified sector
+            aeos = UserProfile.objects.filter(
+                role='AEO',
+                sector=sector,
+                user__is_active=True
+            ).select_related('user')
+            
+            aeo_list = []
+            for aeo in aeos:
+                aeo_list.append({
+                    'id': aeo.user.id,
+                    'username': aeo.user.username,
+                    'sector': aeo.sector,
+                    'school_name': aeo.school_name,
+                    'display_name': f"AEO {aeo.sector}" if aeo.sector else f"AEO {aeo.user.username}"
+                })
+            
+            return Response(aeo_list)
+        except Exception as e:
+            print(f"Error getting AEOs by sector: {e}")
+            return Response({'error': f'Error getting AEOs by sector: {str(e)}'}, status=500)
