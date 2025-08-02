@@ -142,6 +142,19 @@ export const apiService = {
     );
   },
 
+  // Admin messaging
+  sendAdminMessage: async (receiverId, messageText) => {
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/admin/messages/`, {
+        method: 'POST',
+        body: JSON.stringify({
+          receiver_id: receiverId,
+          message_text: messageText
+        }),
+      })
+    );
+  },
+
   // Principals
   getPrincipal: async (schoolName) => {
     return retryRequest(() => 

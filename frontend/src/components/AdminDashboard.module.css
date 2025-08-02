@@ -1,3 +1,16 @@
+/* React Icons Styling */
+.themeToggle svg,
+.messagesButton svg,
+.refreshButton svg,
+.backButton svg,
+.summaryCard h3 svg,
+.sectionTitle svg,
+.tab svg {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+}
+
 /* Admin Dashboard Styles */
 .adminDashboard {
   min-height: 100vh;
@@ -128,6 +141,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  display: flex;
 }
 
 .logoutBtn:hover {
@@ -172,6 +186,113 @@
 
 .dark .animationToggle.active {
   background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.messagesButton {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+  position: relative;
+}
+
+.messagesButton:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+}
+
+.dark .messagesButton {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.dark .messagesButton:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+}
+
+.messagesButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.messageCountBadge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 2px solid white;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.2s ease;
+}
+
+.dark .messageCountBadge {
+  border-color: #1e293b;
+}
+
+.messageCountBadge.hasUnread {
+  opacity: 1;
+  transform: scale(1);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.messagingButton {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+}
+
+.messagingButton:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+}
+
+.dark .messagingButton {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+}
+
+.dark .messagingButton:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
 }
 
 .refreshButton {

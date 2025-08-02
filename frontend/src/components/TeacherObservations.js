@@ -1,5 +1,40 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
+import { 
+  IoBarChartOutline, 
+  IoStatsChartOutline,
+  IoAnalyticsOutline,
+  IoPeopleOutline,
+  IoSchoolOutline,
+  IoBookOutline,
+  IoCalendarOutline,
+  IoFilterOutline,
+  IoSearchOutline,
+  IoRefreshOutline,
+  IoDownloadOutline,
+  IoPrintOutline,
+  IoShareOutline,
+  IoNotificationsOutline,
+  IoMailOutline,
+  IoChatbubblesOutline,
+  IoPersonOutline,
+  IoCheckmarkCircleOutline,
+  IoCloseCircleOutline,
+  IoWarningOutline,
+  IoInformationCircleOutline,
+  IoArrowUpOutline,
+  IoArrowDownOutline,
+  IoTrendingUpOutline,
+  IoTrendingDownOutline,
+  IoEyeOutline,
+  IoEyeOffOutline,
+  IoGridOutline,
+  IoListOutline,
+  IoTimeOutline,
+  IoLocationOutline,
+  IoCallOutline,
+  IoMailUnreadOutline
+} from 'react-icons/io5';
 
 const TeacherObservations = ({ schoolName }) => {
   const [observations, setObservations] = useState([]);
@@ -71,7 +106,7 @@ const TeacherObservations = ({ schoolName }) => {
 
       {observations.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
-          <div className="text-4xl mb-2">📊</div>
+          <div className="text-4xl mb-2"><IoStatsChartOutline /></div>
           <p>No teacher observations found for this school</p>
           <p className="text-sm mt-2">Teacher observation data will appear here when available</p>
         </div>

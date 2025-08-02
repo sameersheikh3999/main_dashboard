@@ -4,6 +4,44 @@ import {
 } from 'recharts';
 import { apiService } from '../services/api';
 import styles from './AdminDashboard.module.css';
+import AdminMessagingModal from './AdminMessagingModal';
+import MessagingSidebar from './MessagingSidebar';
+import { 
+  IoBarChartOutline, 
+  IoMoonOutline, 
+  IoSunnyOutline,
+  IoStatsChartOutline,
+  IoAnalyticsOutline,
+  IoPeopleOutline,
+  IoSchoolOutline,
+  IoBookOutline,
+  IoCalendarOutline,
+  IoFilterOutline,
+  IoSearchOutline,
+  IoRefreshOutline,
+  IoDownloadOutline,
+  IoPrintOutline,
+  IoShareOutline,
+  IoNotificationsOutline,
+  IoMailOutline,
+  IoChatbubblesOutline,
+  IoPersonOutline,
+  IoCheckmarkCircleOutline,
+  IoCloseCircleOutline,
+  IoWarningOutline,
+  IoInformationCircleOutline,
+  IoArrowUpOutline,
+  IoArrowDownOutline,
+  IoTrendingUpOutline,
+  IoTrendingDownOutline,
+  IoEyeOutline,
+  IoEyeOffOutline,
+  IoGridOutline,
+  IoListOutline,
+  IoArrowBackOutline,
+  IoCloseOutline,
+  IoTimeOutline
+} from 'react-icons/io5';
 
 const AdminDashboard = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
@@ -27,6 +65,9 @@ const AdminDashboard = ({ onLogout }) => {
   const [selectedSector, setSelectedSector] = useState(null);
   const [selectedSchool, setSelectedSchool] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showMessagingModal, setShowMessagingModal] = useState(false);
+  const [messagingSidebarOpen, setMessagingSidebarOpen] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   // Apply theme to body
   useEffect(() => {
@@ -209,48 +250,66 @@ const AdminDashboard = ({ onLogout }) => {
     return new Date(dateString).toLocaleString();
   };
 
+  const loadUnreadMessageCount = async () => {
+    try {
+      const count = await apiService.getUnreadMessageCount();
+      setUnreadMessageCount(count.unread_count || 0);
+    } catch (error) {
+      console.error('Failed to load unread message count:', error);
+    }
+  };
+
+  const toggleMessagingSidebar = () => {
+    setMessagingSidebarOpen(!messagingSidebarOpen);
+  };
+
+  // Load unread message count on component mount
+  useEffect(() => {
+    loadUnreadMessageCount();
+  }, []);
+
   const renderOverviewTab = () => (
     <div className={styles.overviewTab}>
       {/* Statistics Cards */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <h3>Total Teachers</h3>
+          <h3><IoPeopleOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Total Teachers</h3>
                           <p className={styles.statNumber}>{dashboardData.stats?.total_teachers ?? 0}</p>
         </div>
         <div className={styles.statCard}>
-          <h3>Total Schools</h3>
+          <h3><IoSchoolOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Total Schools</h3>
                           <p className={styles.statNumber}>{dashboardData.stats?.total_schools ?? 0}</p>
         </div>
         <div className={styles.statCard}>
-          <h3>Total Users</h3>
+          <h3><IoPersonOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Total Users</h3>
                           <p className={styles.statNumber}>{dashboardData.stats?.total_users ?? 0}</p>
         </div>
         <div className={styles.statCard}>
-          <h3>Total Sectors</h3>
+          <h3><IoGridOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Total Sectors</h3>
                           <p className={styles.statNumber}>{dashboardData.stats?.total_sectors ?? 0}</p>
         </div>
         <div className={styles.statCard}>
-          <h3>Total Conversations</h3>
+          <h3><IoChatbubblesOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Total Conversations</h3>
                           <p className={styles.statNumber}>{dashboardData.stats?.total_conversations ?? 0}</p>
         </div>
         <div className={styles.statCard}>
-          <h3>Total Messages</h3>
+          <h3><IoMailOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Total Messages</h3>
                           <p className={styles.statNumber}>{dashboardData.stats?.total_messages ?? 0}</p>
         </div>
         <div className={styles.statCard}>
-          <h3>Average LP Ratio</h3>
+          <h3><IoAnalyticsOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Average LP Ratio</h3>
                           <p className={styles.statNumber}>{(dashboardData.stats?.avg_lp_ratio ?? 0).toFixed(2)}</p>
         </div>
         <div className={styles.statCard}>
-          <h3>Total AEOs</h3>
+          <h3><IoPersonOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Total AEOs</h3>
                           <p className={styles.statNumber}>{dashboardData.stats?.total_aeos ?? 0}</p>
         </div>
         <div className={styles.statCard}>
-          <h3>Total Principals</h3>
+          <h3><IoPersonOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Total Principals</h3>
                           <p className={styles.statNumber}>{dashboardData.stats?.total_principals ?? 0}</p>
         </div>
         <div className={styles.statCard}>
-          <h3>Total FDEs</h3>
+          <h3><IoPersonOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Total FDEs</h3>
                           <p className={styles.statNumber}>{dashboardData.stats?.total_fdes ?? 0}</p>
         </div>
       </div>
@@ -259,7 +318,7 @@ const AdminDashboard = ({ onLogout }) => {
       {(selectedSector || selectedSchool) && (
         <div className={styles.selectionSummary}>
           <div className={styles.summaryCard}>
-            <h3>📊 Selection Details</h3>
+            <h3><IoStatsChartOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Selection Details</h3>
             {selectedSector && (
               <div className={styles.summaryContent}>
                 <div className={styles.summaryItem}>
@@ -324,7 +383,7 @@ const AdminDashboard = ({ onLogout }) => {
             {selectedSector ? `${selectedSector} - Sector Details` : 'Sector Distribution'}
             {selectedSector && (
               <button onClick={resetSelection} className={styles.backButton}>
-                ← Back to All Sectors
+                <IoArrowBackOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Back to All Sectors
               </button>
             )}
           </h3>
@@ -383,7 +442,7 @@ const AdminDashboard = ({ onLogout }) => {
 
         {/* LP Ratio by Sector */}
         <div className={styles.chartCard}>
-          <h3>LP Ratio by Sector</h3>
+          <h3><IoAnalyticsOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> LP Ratio by Sector</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart 
               data={dashboardData.sector_stats ?? []}
@@ -424,7 +483,7 @@ const AdminDashboard = ({ onLogout }) => {
 
         {/* School Performance Trend */}
         <div className={styles.chartCard}>
-          <h3>Top 10 Schools by LP Ratio</h3>
+          <h3><IoTrendingUpOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Top 10 Schools by LP Ratio</h3>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart 
               data={dashboardData.school_stats?.slice(0, 10) ?? []}
@@ -468,7 +527,7 @@ const AdminDashboard = ({ onLogout }) => {
 
         {/* Teacher Distribution Line Chart */}
         <div className={styles.chartCard}>
-          <h3>Teacher & School Distribution</h3>
+          <h3><IoPeopleOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Teacher & School Distribution</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart 
               data={dashboardData.sector_stats ?? []}
@@ -525,7 +584,7 @@ const AdminDashboard = ({ onLogout }) => {
       {/* Recent Activity */}
       <div className={styles.activitySection}>
         <div className={styles.recentMessages}>
-          <h3>Recent Messages</h3>
+          <h3><IoMailOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Recent Messages</h3>
           <div className={styles.messageList}>
             {dashboardData.recent_messages?.map((msg, index) => (
               <div key={index} className={styles.messageItem}>
@@ -542,7 +601,7 @@ const AdminDashboard = ({ onLogout }) => {
         </div>
 
         <div className={styles.recentConversations}>
-          <h3>Recent Conversations</h3>
+          <h3><IoChatbubblesOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Recent Conversations</h3>
           <div className={styles.conversationList}>
             {dashboardData.recent_conversations?.map((conv, index) => (
               <div key={index} className={styles.conversationItem}>
@@ -573,7 +632,7 @@ const AdminDashboard = ({ onLogout }) => {
             }
           }}
         >
-          Teachers
+          <IoPeopleOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Teachers
         </button>
         <button 
           className={`${styles.dataTypeBtn} ${activeTab === 'schools' ? styles.active : ''}`}
@@ -584,7 +643,7 @@ const AdminDashboard = ({ onLogout }) => {
             }
           }}
         >
-          Schools
+          <IoSchoolOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Schools
         </button>
         <button 
           className={`${styles.dataTypeBtn} ${activeTab === 'conversations' ? styles.active : ''}`}
@@ -595,7 +654,7 @@ const AdminDashboard = ({ onLogout }) => {
             }
           }}
         >
-          Conversations
+          <IoChatbubblesOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Conversations
         </button>
         <button 
           className={`${styles.dataTypeBtn} ${activeTab === 'messages' ? styles.active : ''}`}
@@ -606,7 +665,7 @@ const AdminDashboard = ({ onLogout }) => {
             }
           }}
         >
-          Messages
+          <IoMailOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Messages
         </button>
         <button 
           className={`${styles.dataTypeBtn} ${activeTab === 'users' ? styles.active : ''}`}
@@ -617,7 +676,7 @@ const AdminDashboard = ({ onLogout }) => {
             }
           }}
         >
-          Users
+          <IoPersonOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Users
         </button>
       </div>
 
@@ -809,11 +868,11 @@ const AdminDashboard = ({ onLogout }) => {
       {/* Header */}
       <header className={`${styles.header} ${isScrolled ? styles.scrolled : ''}`}>
         <div className={styles.headerLeft}>
-          <h1>Admin Dashboard</h1>
-          <p>Comprehensive data overview with no restrictions</p>
+          <h1><IoBarChartOutline style={{ marginRight: '12px', verticalAlign: 'middle' }} /> Admin Dashboard</h1>
+          <p><IoInformationCircleOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Comprehensive data overview with no restrictions</p>
           <div className={styles.updateIndicator}>
             <span className={styles.staticIndicator}></span>
-            Manual refresh only - data updates when database changes
+            <IoRefreshOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Manual refresh only - data updates when database changes
           </div>
           {(selectedSector || selectedSchool) && (
             <div className={styles.selectionIndicator}>
@@ -822,25 +881,47 @@ const AdminDashboard = ({ onLogout }) => {
                 {selectedSchool && `School: ${selectedSchool}`}
               </span>
               <button onClick={resetSelection} className={styles.clearSelection}>
-                ✕ Clear
+                <IoCloseOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Clear
               </button>
             </div>
           )}
         </div>
         <div className={styles.headerRight}>
           <button 
+            onClick={toggleMessagingSidebar}
+            className={styles.messagesButton}
+            title="View Messages"
+          >
+            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/>
+            </svg>
+            Messages
+            {unreadMessageCount > 0 && (
+              <div className={`${styles.messageCountBadge} ${styles.hasUnread}`}>
+                {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+              </div>
+            )}
+          </button>
+          <button 
+            onClick={() => setShowMessagingModal(true)}
+            className={styles.messagingButton}
+            title="Send Broadcast Message"
+          >
+            <IoNotificationsOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Message All
+          </button>
+          <button 
             onClick={loadDashboardData} 
             className={styles.refreshButton}
             title="Refresh Data"
             disabled={loading}
           >
-            {loading ? '⏳' : '🔄'}
+            {loading ? <IoTimeOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> : <IoRefreshOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} />}
           </button>
           <button onClick={toggleTheme} className={styles.themeToggle}>
-            {theme === 'light' ? '🌙' : '☀️'}
+                            {theme === 'light' ? <IoMoonOutline /> : <IoSunnyOutline />}
           </button>
           <button onClick={onLogout} className={styles.logoutBtn}>
-            Logout
+            <IoCloseCircleOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Logout
           </button>
         </div>
       </header>
@@ -848,7 +929,7 @@ const AdminDashboard = ({ onLogout }) => {
       {/* Filters */}
       <div className={styles.filters}>
         <div className={styles.filterGroup}>
-          <label>Sector:</label>
+          <label><IoGridOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Sector:</label>
           <select 
             value={filters.sector} 
             onChange={(e) => handleFilterChange('sector', e.target.value)}
@@ -861,7 +942,7 @@ const AdminDashboard = ({ onLogout }) => {
         </div>
 
         <div className={styles.filterGroup}>
-          <label>School:</label>
+          <label><IoSchoolOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> School:</label>
           <select 
             value={filters.school} 
             onChange={(e) => handleFilterChange('school', e.target.value)}
@@ -874,7 +955,7 @@ const AdminDashboard = ({ onLogout }) => {
         </div>
 
         <div className={styles.filterGroup}>
-          <label>Grade:</label>
+          <label><IoBookOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Grade:</label>
           <select 
             value={filters.grade} 
             onChange={(e) => handleFilterChange('grade', e.target.value)}
@@ -887,7 +968,7 @@ const AdminDashboard = ({ onLogout }) => {
         </div>
 
         <div className={styles.filterGroup}>
-          <label>Subject:</label>
+          <label><IoBookOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Subject:</label>
           <select 
             value={filters.subject} 
             onChange={(e) => handleFilterChange('subject', e.target.value)}
@@ -900,7 +981,7 @@ const AdminDashboard = ({ onLogout }) => {
         </div>
 
         <div className={styles.filterGroup}>
-          <label>Date From:</label>
+          <label><IoCalendarOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Date From:</label>
           <input 
             type="date" 
             value={filters.date_from} 
@@ -909,7 +990,7 @@ const AdminDashboard = ({ onLogout }) => {
         </div>
 
         <div className={styles.filterGroup}>
-          <label>Date To:</label>
+          <label><IoCalendarOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Date To:</label>
           <input 
             type="date" 
             value={filters.date_to} 
@@ -918,7 +999,7 @@ const AdminDashboard = ({ onLogout }) => {
         </div>
 
         <div className={styles.filterGroup}>
-          <label>Sort By:</label>
+          <label><IoFilterOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Sort By:</label>
           <select 
             value={filters.sort_by} 
             onChange={(e) => handleFilterChange('sort_by', e.target.value)}
@@ -931,7 +1012,7 @@ const AdminDashboard = ({ onLogout }) => {
         </div>
 
         <div className={styles.filterGroup}>
-          <label>Order:</label>
+          <label><IoArrowUpOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Order:</label>
           <select 
             value={filters.sort_order} 
             onChange={(e) => handleFilterChange('sort_order', e.target.value)}
@@ -948,7 +1029,7 @@ const AdminDashboard = ({ onLogout }) => {
           className={`${styles.tab} ${activeTab === 'overview' ? styles.active : ''}`}
           onClick={() => setActiveTab('overview')}
         >
-          Overview
+          <IoBarChartOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Overview
         </button>
         <button 
           className={`${styles.tab} ${activeTab === 'detailed' ? styles.active : ''}`}
@@ -959,7 +1040,7 @@ const AdminDashboard = ({ onLogout }) => {
             }
           }}
         >
-          Detailed Data
+          <IoListOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Detailed Data
         </button>
       </div>
 
@@ -968,6 +1049,22 @@ const AdminDashboard = ({ onLogout }) => {
         {activeTab === 'overview' && renderOverviewTab()}
         {activeTab === 'detailed' && renderDetailedDataTab()}
       </div>
+
+      {/* Admin Messaging Modal */}
+      <AdminMessagingModal
+        isOpen={showMessagingModal}
+        onClose={() => setShowMessagingModal(false)}
+        theme={theme}
+        onMessageSent={loadDashboardData}
+      />
+
+      {/* Messaging Sidebar */}
+      <MessagingSidebar
+        isOpen={messagingSidebarOpen}
+        onClose={() => setMessagingSidebarOpen(false)}
+        theme={theme}
+        onMessagesRead={loadUnreadMessageCount}
+      />
     </div>
   );
 };

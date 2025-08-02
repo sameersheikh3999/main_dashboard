@@ -46,4 +46,6 @@ urlpatterns = [
     # Admin dashboard endpoints
     path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin-dashboard'),
     path('admin/data/<str:data_type>/', views.AdminDetailedDataView.as_view(), name='admin-detailed-data'),
+    # Admin messaging endpoint
+    path('admin/messages/', views.AdminMessageCreateView.as_view(), name='admin-messages'),
 ]

@@ -1,9 +1,30 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { apiService, getCurrentUser, isAuthenticated } from '../services/api';
 import styles from './MessagingSidebar.module.css';
+import { 
+  IoChatbubblesOutline, 
+  IoPersonOutline, 
+  IoTimeOutline, 
+  IoArrowBackOutline, 
+  IoCloseOutline, 
+  IoArrowUpOutline,
+  IoChevronDownOutline,
+  IoSchoolOutline,
+  IoIdCardOutline,
+  IoMailOutline,
+  IoNotificationsOutline,
+  IoCheckmarkCircleOutline,
+  IoEllipsisHorizontalOutline,
+  IoRefreshOutline,
+  IoSearchOutline,
+  IoAddOutline,
+  IoTrashOutline,
+  IoArchiveOutline,
+  IoStarOutline,
+  IoHeartOutline
+} from 'react-icons/io5';
 
 const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) => {
-  const [activeTab, setActiveTab] = useState('conversations');
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState({});
@@ -12,8 +33,6 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
-  const [availableUsers, setAvailableUsers] = useState([]);
-  const [usersLoaded, setUsersLoaded] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [recentlyUpdatedConversations, setRecentlyUpdatedConversations] = useState(new Set());
   const [previousUnreadCounts, setPreviousUnreadCounts] = useState({});
@@ -52,11 +71,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
     return () => clearInterval(pollInterval);
   }, [isOpen, user?.id, authenticated, conversationsLoaded, loading]);
 
-  useEffect(() => {
-    if (isOpen && user && authenticated && activeTab === 'new' && !usersLoaded) {
-      loadAvailableUsers();
-    }
-  }, [isOpen, user?.id, activeTab, usersLoaded, authenticated]);
+
 
   // Debug effect to log message changes
   useEffect(() => {
@@ -228,62 +243,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
     }
   };
 
-  const loadAvailableUsers = async () => {
-    if (usersLoaded || activeTab !== 'new') return;
-    
-    try {
-      let users = [];
-      
-      if (user.role === 'FDE') {
-        // FDE can message AEOs
-        const aeos = await apiService.getAllAEOs();
-        users = aeos.map(aeo => ({
-          id: aeo.id,
-          name: aeo.username,
-          role: 'AEO',
-          school_name: aeo.school_name || 'Unknown School',
-          emis: aeo.emis || null
-        }));
-      } else if (user.role === 'AEO') {
-        // AEO can message Principals and FDEs
-        const principals = await apiService.getAllPrincipals();
-        const fdes = await apiService.getAllFDEs?.() || [];
-        
-        const principalUsers = principals.map(principal => ({
-            id: principal.id,
-            name: principal.display_name || principal.username,
-            role: 'Principal',
-          school_name: principal.school_name,
-          emis: principal.emis || null
-        }));
-        
-        const fdeUsers = fdes.map(fde => ({
-            id: fde.id,
-            name: fde.username,
-            role: 'FDE',
-          school_name: fde.school_name || 'Unknown School',
-          emis: fde.emis || null
-        }));
-        
-        users = [...principalUsers, ...fdeUsers];
-      } else if (user.role === 'Principal') {
-        // Principal can message AEOs
-        const aeos = await apiService.getAllAEOs();
-        users = aeos.map(aeo => ({
-          id: aeo.id,
-          name: aeo.username,
-          role: 'AEO',
-          school_name: aeo.school_name || 'Unknown School',
-          emis: aeo.emis || null
-        }));
-      }
-      
-      setAvailableUsers(users);
-      setUsersLoaded(true);
-    } catch (error) {
-      console.error('Error loading available users:', error);
-    }
-  };
+
 
   const handleConversationClick = async (conversation) => {
     setSelectedConversation(conversation);
@@ -389,67 +349,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
     }
   };
 
-  const handleStartConversation = async (userItem) => {
-    try {
-      const initialMessage = 'Hello! I would like to start a conversation.';
-      
-      // Immediately add the new conversation to the list for instant feedback
-      const newConversation = {
-        conversation_id: `temp-${Date.now()}`, // Temporary ID
-        school_name: userItem.school_name,
-        other_user: {
-          id: userItem.id,
-          username: userItem.name,
-          role: userItem.role,
-          school_name: userItem.school_name,
-          emis: userItem.emis,
-        },
-        latest_message: {
-          text: initialMessage,
-          timestamp: new Date().toISOString(),
-          sender_id: user.id,
-          is_own: true,
-        },
-        unread_count: 0,
-        created_at: new Date().toISOString(),
-        last_message_at: new Date().toISOString(),
-      };
-      
-      setConversations(prevConversations => {
-        const updatedConversations = [newConversation, ...prevConversations];
-        return updatedConversations;
-      });
-      
-      // Add to recently updated set for visual feedback
-      setRecentlyUpdatedConversations(prev => new Set([...prev, newConversation.conversation_id]));
-      
-      // Switch to conversations tab immediately
-      setActiveTab('conversations');
-      
-      // Send initial message to create conversation
-      await apiService.sendMessage(
-        userItem.school_name,
-        initialMessage,
-        userItem.id
-      );
 
-      // Reload conversations to get the real conversation data
-      setConversationsLoaded(false);
-      await loadConversations();
-      
-      // Remove the temporary highlight
-      setTimeout(() => {
-        setRecentlyUpdatedConversations(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(newConversation.conversation_id);
-          return newSet;
-        });
-      }, 2000);
-    } catch (error) {
-      console.error('Error starting conversation:', error);
-      alert('Failed to start conversation. Please try again.');
-    }
-  };
 
   const handleBackToConversations = () => {
     setSelectedConversation(null);
@@ -480,7 +380,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
       return {
         name: 'You',
         role: user.role,
-        icon: '👤',
+        icon: <IoPersonOutline />,
         school: user.profile?.school_name || null,
         emis: user.profile?.emis || null
       };
@@ -488,7 +388,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
       return {
         name: selectedConversation?.other_user?.username || message.sender?.username || 'Unknown',
         role: selectedConversation?.other_user?.role || 'Unknown',
-        icon: selectedConversation?.other_user?.role === 'AEO' ? '👨‍🏫' : selectedConversation?.other_user?.role === 'Principal' ? '👨‍🏫' : '👨‍💼',
+        icon: selectedConversation?.other_user?.role === 'AEO' ? <IoPersonOutline /> : selectedConversation?.other_user?.role === 'Principal' ? <IoPersonOutline /> : <IoPersonOutline />,
         school: selectedConversation?.school_name,
         emis: selectedConversation?.other_user?.emis
       };
@@ -507,7 +407,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
               className={`${styles.backButton} ${styles[theme]} ${styles.hoverScale}`}
               onClick={handleBackToConversations}
             >
-              ←
+              <IoArrowBackOutline />
             </button>
             <div className={styles.userAvatar}>
               {getInitials(selectedConversation.other_user?.username || 'Unknown')}
@@ -529,7 +429,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
               className={`${styles.closeButton} ${styles[theme]} ${styles.hoverScale}`}
               onClick={onClose}
             >
-              ×
+              <IoCloseOutline />
             </button>
           </div>
 
@@ -540,7 +440,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
                 className={`${styles.scrollToBottomButton} ${styles[theme]}`}
                 title="Scroll to latest message"
               >
-                ↓ New Messages
+                <IoChevronDownOutline style={{ marginRight: '4px' }} /> New Messages
               </button>
             )}
             {loadingMessages ? (
@@ -559,7 +459,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
                   >
                     <div className={styles.messageHeader}>
                       <div className={`${styles.messageSender} ${styles[theme]}`}>
-                        {senderInfo.icon} {senderInfo.name}
+                        <span className={styles.senderIcon}>{senderInfo.icon}</span> {senderInfo.name}
                         <span style={{ 
                           fontSize: '0.8rem', 
                           color: theme === 'dark' ? '#94a3b8' : '#64748b',
@@ -573,7 +473,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
                             color: theme === 'dark' ? '#94a3b8' : '#64748b',
                             marginLeft: '8px'
                           }}>
-                            • 🏫 {senderInfo.school}
+                            • <IoSchoolOutline style={{ display: 'inline', verticalAlign: 'middle' }} /> {senderInfo.school}
                           </span>
                         )}
                         {senderInfo.emis && (
@@ -585,12 +485,12 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
                             padding: '1px 6px',
                             borderRadius: '4px'
                           }}>
-                            EMIS: {senderInfo.emis}
+                            <IoIdCardOutline style={{ display: 'inline', verticalAlign: 'middle', marginRight: '2px' }} /> EMIS: {senderInfo.emis}
                           </span>
                         )}
                       </div>
                       <div className={`${styles.messageTime} ${styles[theme]}`}>
-                        🕐 {formatTimestamp(message.timestamp)}
+                        <IoTimeOutline style={{ display: 'inline', verticalAlign: 'middle', marginRight: '2px' }} /> {formatTimestamp(message.timestamp)}
                       </div>
                     </div>
                     <div className={`${styles.messageText} ${styles[theme]}`}>
@@ -601,7 +501,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
               })
             ) : (
               <div className={`${styles.emptyState} ${styles[theme]}`}>
-                <div className={styles.emptyStateIcon}>💭</div>
+                <div className={styles.emptyStateIcon}><IoChatbubblesOutline /></div>
                 No messages yet. Start the conversation!
               </div>
             )}
@@ -628,7 +528,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
                 </>
               ) : (
                 <>
-                  📤 Send
+                  <IoArrowUpOutline />
                 </>
               )}
             </button>
@@ -643,150 +543,81 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
     <div className={`${styles.sidebarContainer} ${isOpen ? styles.open : ''} ${styles[theme]}`}>
       <div className={`${styles.sidebarHeader} ${styles[theme]}`}>
         <h2 className={`${styles.sidebarTitle} ${styles[theme]}`}>
-          💬 Messages
+          <IoChatbubblesOutline style={{ marginRight: '8px' }} /> Messages
         </h2>
-        <button 
-          className={`${styles.closeButton} ${styles[theme]} ${styles.hoverScale}`}
-          onClick={onClose}
-        >
-          ×
-        </button>
+                  <button 
+            className={`${styles.closeButton} ${styles[theme]} ${styles.hoverScale}`}
+            onClick={onClose}
+          >
+            <IoCloseOutline />
+          </button>
       </div>
 
       <div className={styles.sidebarContent}>
-        <div className={`${styles.tabsContainer} ${styles[theme]}`}>
-          <button 
-            className={`${styles.tab} ${activeTab === 'conversations' ? styles.active : ''} ${styles[theme]}`}
-            onClick={() => setActiveTab('conversations')}
-          >
-            💬 Conversations
-          </button>
-          <button 
-            className={`${styles.tab} ${activeTab === 'new' ? styles.active : ''} ${styles[theme]}`}
-            onClick={() => setActiveTab('new')}
-          >
-            ✨ New Message
-          </button>
-        </div>
-
-        <div className={`${styles.tabContent} ${styles[theme]}`}>
-          {activeTab === 'conversations' && (
-            <>
-              {loading ? (
-                <div className={`${styles.emptyState} ${styles[theme]}`}>
-                  <div className={styles.loadingSpinner}></div>
-                  Loading conversations...
-                </div>
-              ) : conversations.length === 0 ? (
-                <div className={`${styles.emptyState} ${styles[theme]}`}>
-                  <div className={styles.emptyStateIcon}>💬</div>
-                  No conversations yet. Start a new conversation to begin messaging.
-                  <div style={{ fontSize: '0.9rem', marginTop: '8px' }}>
-                    Switch to "New Message" tab to start a conversation.
+        {loading ? (
+          <div className={`${styles.emptyState} ${styles[theme]}`}>
+            <div className={styles.loadingSpinner}></div>
+            Loading conversations...
+          </div>
+        ) : conversations.length === 0 ? (
+          <div className={`${styles.emptyState} ${styles[theme]}`}>
+            <div className={styles.emptyStateIcon}><IoMailOutline /></div>
+            No conversations yet.
+          </div>
+        ) : (
+          <div className={styles.conversationList}>
+            {conversations.map(conversation => {
+              // Add null checks and debugging
+              if (!conversation || !conversation.other_user) {
+                console.warn('Invalid conversation data:', conversation);
+                return null;
+              }
+              
+              return (
+                <div
+                  key={conversation.conversation_id}
+                  className={`${styles.conversationItem} ${styles[theme]} ${styles.hoverLift} ${conversation.unread_count > 0 ? styles.newMessage : ''} ${recentlyUpdatedConversations.has(conversation.conversation_id) ? styles.recentlyUpdated : ''}`}
+                  onClick={() => handleConversationClick(conversation)}
+                >
+                  <div className={styles.userAvatar}>
+                    {getInitials(conversation.other_user.username || 'Unknown')}
                   </div>
-                </div>
-              ) : (
-                <div className={styles.conversationList}>
-                  {conversations.map(conversation => {
-                    // Add null checks and debugging
-                    if (!conversation || !conversation.other_user) {
-                      console.warn('Invalid conversation data:', conversation);
-                      return null;
-                    }
-                    
-                    return (
-                      <div
-                        key={conversation.conversation_id}
-                        className={`${styles.conversationItem} ${styles[theme]} ${styles.hoverLift} ${conversation.unread_count > 0 ? styles.newMessage : ''} ${recentlyUpdatedConversations.has(conversation.conversation_id) ? styles.recentlyUpdated : ''}`}
-                        onClick={() => handleConversationClick(conversation)}
-                      >
-                        <div className={styles.conversationHeader}>
-                          <div className={styles.userAvatar}>
-                            {getInitials(conversation.other_user.username || 'Unknown')}
-                          </div>
-                          <div className={styles.conversationInfo}>
-                            <div className={`${styles.conversationName} ${styles[theme]}`}>
-                              {conversation.other_user.username || 'Unknown User'}
-                            </div>
-                            <div className={`${styles.conversationMeta} ${styles[theme]}`}>
-                              <span className={`${styles.roleBadge} ${styles[theme]}`}>
-                                {conversation.other_user.role || 'Unknown'}
-                              </span>
-                              {conversation.school_name && (
-                                <span>🏫 {conversation.school_name}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className={styles.conversationActions}>
-                          {conversation.unread_count > 0 && (
-                              <div className={styles.unreadBadge}>
-                              {conversation.unread_count}
-                              </div>
-                            )}
-                            <div className={`${styles.messageTime} ${styles[theme]}`}>
-                              {formatTimestamp(conversation.latest_message?.timestamp || conversation.created_at)}
-                            </div>
-                          </div>
-                        </div>
-                        {conversation.latest_message?.text && (
-                          <div className={`${styles.messagePreview} ${styles[theme]}`}>
-                            <span className={styles.messagePreviewText}>
-                              {conversation.latest_message.is_own ? 'You: ' : ''}
-                              {conversation.latest_message.text}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-
-          {activeTab === 'new' && (
-            <>
-              <div className={styles.userList}>
-                {availableUsers.map(userItem => (
-                  <div
-                    key={userItem.id}
-                    className={`${styles.userItem} ${styles[theme]} ${styles.hoverLift}`}
-                    onClick={() => handleStartConversation(userItem)}
-                  >
-                    <div className={styles.userHeader}>
-                      <div className={styles.userAvatar}>
-                        {getInitials(userItem.name)}
-                      </div>
-                      <div className={styles.userInfo}>
-                        <div className={`${styles.userName} ${styles[theme]}`}>
-                          {userItem.role === 'AEO' ? '👨‍🏫' : userItem.role === 'Principal' ? '👨‍🏫' : '👨‍💼'} {userItem.name}
-                        </div>
-                        <div className={`${styles.userRole} ${styles[theme]}`}>
-                          <span className={`${styles.roleBadge} ${styles[theme]}`}>{userItem.role}</span>
-                          {userItem.school_name && (
-                            <span>🏫 {userItem.school_name}</span>
-                          )}
-                        </div>
-                      </div>
+                  <div className={styles.conversationInfo}>
+                    <div className={`${styles.conversationName} ${styles[theme]}`}>
+                      {conversation.other_user.username || 'Unknown User'}
                     </div>
-                    {userItem.emis && (
-                      <div className={`${styles.emisNumber} ${styles[theme]}`}>
-                        EMIS: {userItem.emis}
+                    <div className={`${styles.conversationMeta} ${styles[theme]}`}>
+                      <span className={`${styles.roleBadge} ${styles[theme]}`}>
+                        {conversation.other_user.role || 'Unknown'}
+                      </span>
+                      {conversation.school_name && (
+                        <span><IoSchoolOutline style={{ display: 'inline', verticalAlign: 'middle', marginRight: '2px' }} /> {conversation.school_name}</span>
+                      )}
+                    </div>
+                    {conversation.latest_message?.text && (
+                      <div className={`${styles.messagePreview} ${styles[theme]}`}>
+                        <span className={styles.messagePreviewText}>
+                          {conversation.latest_message.is_own ? 'You: ' : ''}
+                          {conversation.latest_message.text}
+                        </span>
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
-              
-              {availableUsers.length === 0 && (
-                <div className={`${styles.emptyState} ${styles[theme]}`}>
-                  <div className={styles.emptyStateIcon}>👥</div>
-                  No users available to message.
+                  <div className={styles.conversationActions}>
+                    {conversation.unread_count > 0 && (
+                      <div className={styles.unreadBadge}>
+                        {conversation.unread_count}
+                      </div>
+                    )}
+                    <div className={`${styles.messageTime} ${styles[theme]}`}>
+                      {formatTimestamp(conversation.latest_message?.timestamp || conversation.created_at)}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </>
-          )}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

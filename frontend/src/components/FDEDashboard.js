@@ -6,6 +6,32 @@ import { apiService } from '../services/api';
 import MessagingModal from './MessagingModal';
 import MessagingSidebar from './MessagingSidebar';
 import styles from './FDEDashboard.module.css';
+import { 
+  IoSchoolOutline,
+  IoPeopleOutline,
+  IoBarChartOutline,
+  IoAnalyticsOutline,
+  IoMoonOutline,
+  IoSunnyOutline,
+  IoChatbubblesOutline,
+  IoLogOutOutline,
+  IoEyeOutline,
+  IoFilterOutline,
+  IoStatsChartOutline,
+  IoCheckmarkCircleOutline,
+  IoCloseCircleOutline,
+  IoArrowUpOutline,
+  IoArrowDownOutline,
+  IoTrendingUpOutline,
+  IoTrendingDownOutline,
+  IoLocationOutline,
+  IoCalendarOutline,
+  IoBookOutline,
+  IoGridOutline,
+  IoListOutline,
+  IoRefreshOutline,
+  IoInformationCircleOutline
+} from 'react-icons/io5';
 
 // Global theme styles - will be applied via useEffect
 
@@ -154,7 +180,10 @@ const FDEDashboard = ({ onLogout }) => {
   if (loading) {
     return (
       <div className={`${styles.dashboardContainer} ${styles[theme]}`}>
-        <div className={`${styles.loadingSpinner} ${styles[theme]}`}>Loading FDE Dashboard...</div>
+        <div className={`${styles.loadingSpinner} ${styles[theme]}`}>
+          <IoRefreshOutline style={{ marginRight: '8px', fontSize: '20px', animation: 'spin 1s linear infinite' }} />
+          Loading FDE Dashboard...
+        </div>
       </div>
     );
   }
@@ -165,19 +194,22 @@ const FDEDashboard = ({ onLogout }) => {
       <header className={styles.header}>
         <div className={`${styles.topBar} ${styles[theme]}`}>
           <div>
-            <h1 className={styles.title}>Federal Directorate of Education Dashboard</h1>
+            <h1 className={styles.title}>
+              <IoSchoolOutline style={{ marginRight: '12px', fontSize: '28px' }} />
+              Federal Directorate of Education Dashboard
+            </h1>
             <div className={`${styles.subtitle} ${styles[theme]}`}>
+              <IoAnalyticsOutline style={{ marginRight: '8px', fontSize: '16px' }} />
               National oversight of educational performance and school management
             </div>
           </div>
           <div className={styles.headerActions}>
             <button className={styles.messagingBtn} onClick={toggleMessagingSidebar}>
-              <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/>
-              </svg>
+              <IoChatbubblesOutline style={{ marginRight: '8px', fontSize: '18px' }} />
               Messages
               {unreadMessageCount > 0 && (
                 <div className={`${styles.messageCountBadge} ${unreadMessageCount > 0 ? styles.hasUnread : ''}`}>
+                  
                   {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
                 </div>
               )}
@@ -185,21 +217,20 @@ const FDEDashboard = ({ onLogout }) => {
             <button className={`${styles.themeToggleBtn} ${styles[theme]}`} onClick={toggleTheme}>
               {theme === 'light' ? (
                 <>
-                  <svg fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                  </svg>
+                  <IoMoonOutline style={{ marginRight: '8px', fontSize: '18px' }} />
                   Dark
                 </>
               ) : (
                 <>
-                  <svg fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-                  </svg>
+                  <IoSunnyOutline style={{ marginRight: '8px', fontSize: '18px' }} />
                   Light
                 </>
               )}
             </button>
-            <button className={styles.logoutBtn} onClick={onLogout}>Logout</button>
+            <button className={styles.logoutBtn} onClick={onLogout}>
+              <IoLogOutOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+              Logout
+            </button>
           </div>
         </div>
       </header>
@@ -208,22 +239,34 @@ const FDEDashboard = ({ onLogout }) => {
 
       <div className={styles.summaryGrid}>
         <div className={`${styles.summaryCard} ${styles[theme]}`}>
-          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Total Schools</div>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+            <IoSchoolOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+            Total Schools
+          </div>
           <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#10b981' }}>{summaryStats.total_schools}</div>
           <div className={`${styles.summarySub} ${styles[theme]}`}>Under FDE Management</div>
         </div>
         <div className={`${styles.summaryCard} ${styles[theme]}`}>
-          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Total Teachers</div>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+            <IoPeopleOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+            Total Teachers
+          </div>
           <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#8b5cf6' }}>{summaryStats.total_teachers}</div>
           <div className={`${styles.summarySub} ${styles[theme]}`}>Across All Schools</div>
         </div>
         <div className={`${styles.summaryCard} ${styles[theme]}`}>
-          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Total Sectors</div>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+            <IoBarChartOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+            Total Sectors
+          </div>
           <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#3b82f6' }}>{summaryStats.total_sectors} 6 <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal' }}>(AEO)</span></div>
           <div className={`${styles.summarySub} ${styles[theme]}`}>Educational Sectors</div>
         </div>
         <div className={`${styles.summaryCard} ${styles[theme]}`}>
-          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Avg LP Ratio</div>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+            <IoStatsChartOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+            Avg LP Ratio
+          </div>
           <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#f59e0b' }}>
             {Math.round(summaryStats.overall_avg_lp_ratio || 0)}%
           </div>
@@ -233,7 +276,10 @@ const FDEDashboard = ({ onLogout }) => {
 
       <div className={styles.grid}>
         <div className={`${styles.card} ${styles[theme]}`}>
-          <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>Sector Distribution</h3>
+          <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
+            <IoBarChartOutline style={{ marginRight: '8px', fontSize: '20px' }} />
+            Sector Distribution
+          </h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie
@@ -263,6 +309,7 @@ const FDEDashboard = ({ onLogout }) => {
         </div>
         <div className={`${styles.card} ${styles[theme]}`}>
           <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
+            <IoAnalyticsOutline style={{ marginRight: '8px', fontSize: '20px' }} />
             Sector Performance Ranking
             <span style={{ 
               fontSize: '0.9rem', 
@@ -295,6 +342,13 @@ const FDEDashboard = ({ onLogout }) => {
                   </div>
                   <div className={styles.sectorPerformance}>
                     <div className={styles.performanceScore} style={{ color: performanceColor }}>
+                      {index === 0 ? (
+                        <IoTrendingDownOutline style={{ marginRight: '4px', fontSize: '16px' }} />
+                      ) : index === sectorPerformance.length - 1 ? (
+                        <IoTrendingUpOutline style={{ marginRight: '4px', fontSize: '16px' }} />
+                      ) : (
+                        <IoInformationCircleOutline style={{ marginRight: '4px', fontSize: '16px' }} />
+                      )}
                       {sector.performanceScore}%
                     </div>
                     <div className={`${styles.performanceLabel} ${styles[theme]}`}>
@@ -317,7 +371,7 @@ const FDEDashboard = ({ onLogout }) => {
                       }}
                       disabled={!sectorAEOMap[sector.name]}
                     >
-                      <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/></svg>
+                      <IoChatbubblesOutline style={{ marginRight: '4px', fontSize: '16px' }} />
                       Ask AEO
                     </button>
                   </div>
@@ -328,7 +382,10 @@ const FDEDashboard = ({ onLogout }) => {
         </div>
       </div>
       <div className={`${styles.sectorFilterContainer} ${styles[theme]}`}>
-        <h3 className={`${styles.sectorFilterTitle} ${styles[theme]}`}>Filter by Sector (AEO)</h3>
+        <h3 className={`${styles.sectorFilterTitle} ${styles[theme]}`}>
+          <IoFilterOutline style={{ marginRight: '8px', fontSize: '20px' }} />
+          Filter by Sector (AEO)
+        </h3>
         <div className={styles.sectorButtonsRow}>
           <button 
             className={`${styles.sectorButton} ${styles[theme]} ${selectedSector === 'All' ? styles.active : ''}`}
@@ -350,6 +407,7 @@ const FDEDashboard = ({ onLogout }) => {
       
       <div className={`${styles.fullWidthCard} ${styles[theme]}`}>
         <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
+          <IoSchoolOutline style={{ marginRight: '8px', fontSize: '20px' }} />
           {selectedSector === 'All' ? 'All Schools' : `${selectedSector} Sector Schools`}
           <span style={{ 
             fontSize: '0.9rem', 
@@ -367,9 +425,20 @@ const FDEDashboard = ({ onLogout }) => {
               const isActive = avgLP > 10;
               return (
                 <li key={school.emis} className={`${styles.schoolItem} ${styles[theme]} ${!isActive ? styles.inactive : ''}`}>
+                  <IoSchoolOutline style={{ marginRight: '8px', fontSize: '16px', opacity: 0.7 }} />
                   {school.school_name} ({school.sector})
                   <span className={`${styles.statusTag} ${isActive ? styles.active : styles.inactive}`}>
-                    {isActive ? 'Active' : 'Inactive'}
+                    {isActive ? (
+                      <>
+                        <IoCheckmarkCircleOutline style={{ marginRight: '4px', fontSize: '14px' }} />
+                        Active
+                      </>
+                    ) : (
+                      <>
+                        <IoCloseCircleOutline style={{ marginRight: '4px', fontSize: '14px' }} />
+                        Inactive
+                      </>
+                    )}
                   </span>
                 </li>
               );

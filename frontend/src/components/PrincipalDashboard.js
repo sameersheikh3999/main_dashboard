@@ -1,9 +1,47 @@
 import React, { useState, useEffect } from 'react';
+import {
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid
+} from 'recharts';
 import { apiService, getCurrentUser } from '../services/api';
+import styles from './PrincipalDashboard.module.css';
 import MessagingSidebar from './MessagingSidebar';
 import TeacherObservations from './TeacherObservations';
 import SchoolInfrastructure from './SchoolInfrastructure';
-import styles from './PrincipalDashboard.module.css';
+import {
+  IoBarChartOutline,
+  IoStatsChartOutline,
+  IoAnalyticsOutline,
+  IoPeopleOutline,
+  IoSchoolOutline,
+  IoBookOutline,
+  IoCalendarOutline,
+  IoFilterOutline,
+  IoSearchOutline,
+  IoRefreshOutline,
+  IoDownloadOutline,
+  IoPrintOutline,
+  IoShareOutline,
+  IoNotificationsOutline,
+  IoMailOutline,
+  IoChatbubblesOutline,
+  IoPersonOutline,
+  IoCheckmarkCircleOutline,
+  IoCloseCircleOutline,
+  IoWarningOutline,
+  IoInformationCircleOutline,
+  IoArrowUpOutline,
+  IoArrowDownOutline,
+  IoTrendingUpOutline,
+  IoTrendingDownOutline,
+  IoEyeOutline,
+  IoEyeOffOutline,
+  IoGridOutline,
+  IoListOutline,
+  IoTimeOutline,
+  IoLocationOutline,
+  IoCallOutline,
+  IoMailUnreadOutline
+} from 'react-icons/io5';
 
 const PrincipalDashboard = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
@@ -37,10 +75,10 @@ const PrincipalDashboard = ({ onLogout }) => {
       // Get current user to determine school name
       const currentUser = getCurrentUser();
       const schoolName = currentUser?.profile?.school_name;
-      
+
       console.log('Loading dashboard data for principal:', currentUser);
       console.log('School name:', schoolName);
-      
+
       if (!schoolName) {
         console.error('No school name found for principal user');
         return;
@@ -51,18 +89,18 @@ const PrincipalDashboard = ({ onLogout }) => {
         apiService.getSchoolTeachersData(),
         apiService.getUserConversations()
       ]);
-      
+
       console.log('School teachers data:', schoolTeachersData);
       console.log('Conversations:', conversations);
-      
+
       // Process school teachers data for dashboard stats
       // The API returns { school_details: {...}, teachers: [...] }
       const schoolDetails = schoolTeachersData.school_details;
       const teachersList = schoolTeachersData.teachers || [];
-      
+
       console.log('School details:', schoolDetails);
       console.log('Teachers list:', teachersList);
-      
+
       if (schoolDetails) {
         const dashboardStats = {
           total_teachers: schoolDetails.total_teachers || 0,
@@ -75,7 +113,7 @@ const PrincipalDashboard = ({ onLogout }) => {
           infrastructure_status: 'Good', // Default value
           teachers: teachersList // Store teachers for display
         };
-        
+
         console.log('Dashboard stats:', dashboardStats);
         setDashboardData(dashboardStats);
       } else {
@@ -93,7 +131,7 @@ const PrincipalDashboard = ({ onLogout }) => {
           teachers: []
         });
       }
-      
+
       // Process conversations for recent messages
       const recentMessages = conversations.slice(0, 5).map(conv => ({
         id: conv.id,
@@ -102,7 +140,7 @@ const PrincipalDashboard = ({ onLogout }) => {
         timestamp: conv.last_message?.timestamp || conv.created_at,
         conversation_id: conv.id
       }));
-      
+
       console.log('Recent messages:', recentMessages);
       setRecentMessages(recentMessages);
     } catch (error) {
@@ -268,7 +306,7 @@ const PrincipalDashboard = ({ onLogout }) => {
                 <div key={message.id} className={styles.messageItem}>
                   <div className={styles.messageHeader}>
                     <div className={styles.messageSender}>
-                      <span>💬</span>
+                      <span><IoChatbubblesOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /></span>
                       {message.sender_name}
                     </div>
                     <div className={styles.messageTime}>{formatTimestamp(message.timestamp)}</div>
@@ -282,7 +320,10 @@ const PrincipalDashboard = ({ onLogout }) => {
                       onChange={(e) => setReplyText({ ...replyText, [message.conversation_id]: e.target.value })}
                       className={styles.replyInput}
                     />
-                    <button type="submit" className={styles.replyButton}>Reply</button>
+                    <button type="submit" className={styles.replyButton}>
+                      <IoArrowUpOutline style={{ marginRight: '4px', fontSize: '16px' }} />
+                      Reply
+                    </button>
                   </form>
                 </div>
               ))

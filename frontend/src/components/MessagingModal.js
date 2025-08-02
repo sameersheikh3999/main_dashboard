@@ -1,6 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { apiService } from '../services/api';
+import { 
+  IoBarChartOutline, 
+  IoStatsChartOutline,
+  IoAnalyticsOutline,
+  IoPeopleOutline,
+  IoSchoolOutline,
+  IoBookOutline,
+  IoCalendarOutline,
+  IoFilterOutline,
+  IoSearchOutline,
+  IoRefreshOutline,
+  IoDownloadOutline,
+  IoPrintOutline,
+  IoShareOutline,
+  IoNotificationsOutline,
+  IoMailOutline,
+  IoChatbubblesOutline,
+  IoPersonOutline,
+  IoCheckmarkCircleOutline,
+  IoCloseCircleOutline,
+  IoWarningOutline,
+  IoInformationCircleOutline,
+  IoArrowUpOutline,
+  IoArrowDownOutline,
+  IoTrendingUpOutline,
+  IoTrendingDownOutline,
+  IoEyeOutline,
+  IoEyeOffOutline,
+  IoGridOutline,
+  IoListOutline,
+  IoTimeOutline,
+  IoLocationOutline,
+  IoCallOutline,
+  IoMailUnreadOutline,
+  IoCloseOutline
+} from 'react-icons/io5';
 
 // Animations
 const fadeIn = keyframes`
@@ -418,10 +454,10 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
       <ModalContent theme={theme} onClick={(e) => e.stopPropagation()}>
         <ModalHeader theme={theme}>
           <ModalTitle theme={theme}>
-            💬 Send Message
+            <IoChatbubblesOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Send Message
           </ModalTitle>
           <CloseButton onClick={handleClose} theme={theme}>
-            ×
+            <IoCloseOutline />
           </CloseButton>
         </ModalHeader>
         
@@ -447,7 +483,7 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
           <MessageForm onSubmit={handleSubmit}>
             <FormGroup>
               <Label theme={theme}>
-                📝 Your Message
+                <IoArrowUpOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Your Message
               </Label>
               <TextArea
                 value={message}
@@ -460,13 +496,13 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
 
             {error && (
               <ErrorMessage>
-                ❌ {error}
+                <IoCloseCircleOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> {error}
               </ErrorMessage>
             )}
             
             {success && (
               <SuccessMessage>
-                ✅ {success}
+                <IoCheckmarkCircleOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> {success}
               </SuccessMessage>
             )}
 
@@ -482,7 +518,7 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
                   </>
                 ) : (
                   <>
-                    📤 Send Message
+                    <IoArrowUpOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Send Message
                   </>
                 )}
               </Button>

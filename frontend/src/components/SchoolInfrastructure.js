@@ -1,5 +1,43 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
+import { 
+  IoBarChartOutline, 
+  IoStatsChartOutline,
+  IoAnalyticsOutline,
+  IoPeopleOutline,
+  IoSchoolOutline,
+  IoBookOutline,
+  IoCalendarOutline,
+  IoFilterOutline,
+  IoSearchOutline,
+  IoRefreshOutline,
+  IoDownloadOutline,
+  IoPrintOutline,
+  IoShareOutline,
+  IoNotificationsOutline,
+  IoMailOutline,
+  IoChatbubblesOutline,
+  IoPersonOutline,
+  IoCheckmarkCircleOutline,
+  IoCloseCircleOutline,
+  IoWarningOutline,
+  IoInformationCircleOutline,
+  IoArrowUpOutline,
+  IoArrowDownOutline,
+  IoTrendingUpOutline,
+  IoTrendingDownOutline,
+  IoEyeOutline,
+  IoEyeOffOutline,
+  IoGridOutline,
+  IoListOutline,
+  IoTimeOutline,
+  IoLocationOutline,
+  IoCallOutline,
+  IoMailUnreadOutline,
+  IoConstructOutline,
+  IoBuildOutline,
+  IoBulbOutline
+} from 'react-icons/io5';
 
 const SchoolInfrastructure = ({ schoolName }) => {
   const [infrastructure, setInfrastructure] = useState(null);
@@ -37,17 +75,17 @@ const SchoolInfrastructure = ({ schoolName }) => {
 
   const getWifiIcon = (status) => {
     switch (status) {
-      case 'Available': return '📶';
-      case 'Limited': return '📶⚠️';
-      case 'Not Available': return '❌';
-      default: return '❓';
+      case 'Available': return <IoEyeOutline />;
+      case 'Limited': return <IoEyeOffOutline />;
+      case 'Not Available': return <IoCloseCircleOutline />;
+      default: return <IoInformationCircleOutline />;
     }
   };
 
   if (loading) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">🏫 School Infrastructure</h2>
+        <h2 className="text-xl font-semibold mb-4"><IoSchoolOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> School Infrastructure</h2>
         <div className="flex justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
@@ -58,7 +96,7 @@ const SchoolInfrastructure = ({ schoolName }) => {
   if (error) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">🏫 School Infrastructure</h2>
+        <h2 className="text-xl font-semibold mb-4"><IoSchoolOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> School Infrastructure</h2>
         <div className="text-red-600">{error}</div>
       </div>
     );
@@ -67,9 +105,9 @@ const SchoolInfrastructure = ({ schoolName }) => {
   if (!infrastructure) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">🏫 School Infrastructure</h2>
+        <h2 className="text-xl font-semibold mb-4"><IoSchoolOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> School Infrastructure</h2>
         <div className="text-center py-8 text-gray-500">
-          <div className="text-4xl mb-2">🏫</div>
+          <div className="text-4xl mb-2"><IoSchoolOutline /></div>
           <p>No infrastructure data available</p>
         </div>
       </div>
@@ -78,7 +116,7 @@ const SchoolInfrastructure = ({ schoolName }) => {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold mb-6">🏫 School Infrastructure</h2>
+      <h2 className="text-xl font-semibold mb-6"><IoSchoolOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> School Infrastructure</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* WiFi Status */}
@@ -99,7 +137,7 @@ const SchoolInfrastructure = ({ schoolName }) => {
         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-green-800">Mobile Phone Access</h3>
-            <span className="text-2xl">📱</span>
+            <span className="text-2xl"><IoCallOutline /></span>
           </div>
           <div className="text-2xl font-bold text-green-600 mb-1">
             {infrastructure.mobile_phone_percentage}%
@@ -113,7 +151,7 @@ const SchoolInfrastructure = ({ schoolName }) => {
         <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-purple-800">Infrastructure Score</h3>
-            <span className="text-2xl">🏗️</span>
+            <span className="text-2xl"><IoBuildOutline /></span>
           </div>
           <div className="text-2xl font-bold text-purple-600 mb-1">
             {infrastructure.avg_infrastructure_score.toFixed(1)}/5.0
@@ -126,7 +164,7 @@ const SchoolInfrastructure = ({ schoolName }) => {
 
       {/* Detailed Information */}
       <div className="mt-6 bg-gray-50 rounded-lg p-4">
-        <h3 className="font-semibold text-gray-800 mb-3">📊 Detailed Information</h3>
+        <h3 className="font-semibold text-gray-800 mb-3"><IoStatsChartOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Detailed Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
             <p><span className="font-medium">School:</span> {infrastructure.school}</p>
@@ -143,7 +181,7 @@ const SchoolInfrastructure = ({ schoolName }) => {
 
       {/* Recommendations */}
       <div className="mt-6 bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-        <h3 className="font-semibold text-yellow-800 mb-2">💡 Recommendations</h3>
+        <h3 className="font-semibold text-yellow-800 mb-2"><IoBulbOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Recommendations</h3>
         <ul className="text-sm text-yellow-700 space-y-1">
           {infrastructure.wifi_status === 'Not Available' && (
             <li>• Consider implementing WiFi infrastructure to improve digital learning</li>

@@ -1,11 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid, AreaChart, Area
 } from 'recharts';
 import { apiService } from '../services/api';
 import MessagingModal from './MessagingModal';
 import MessagingSidebar from './MessagingSidebar';
 import styles from './AEODashboard.module.css';
+import { 
+  IoBarChartOutline, 
+  IoStatsChartOutline,
+  IoAnalyticsOutline,
+  IoPeopleOutline,
+  IoSchoolOutline,
+  IoBookOutline,
+  IoCalendarOutline,
+  IoFilterOutline,
+  IoSearchOutline,
+  IoRefreshOutline,
+  IoDownloadOutline,
+  IoPrintOutline,
+  IoShareOutline,
+  IoMailOutline,
+  IoChatbubblesOutline,
+  IoPersonOutline,
+  IoCheckmarkCircleOutline,
+  IoCloseCircleOutline,
+  IoWarningOutline,
+  IoInformationCircleOutline,
+  IoArrowUpOutline,
+  IoArrowDownOutline,
+  IoTrendingUpOutline,
+  IoTrendingDownOutline,
+  IoEyeOutline,
+  IoEyeOffOutline,
+  IoGridOutline,
+  IoListOutline,
+  IoTimeOutline,
+  IoLocationOutline,
+  IoCallOutline,
+  IoMailUnreadOutline
+} from 'react-icons/io5';
 
 const AEODashboard = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
@@ -228,7 +262,7 @@ const AEODashboard = ({ onLogout }) => {
       <div className={styles.grid}>
         <div className={`${styles.card} ${styles[theme]}`}>
           <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
-            📊 Sector Performance Overview
+            <IoStatsChartOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Sector Performance Overview
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={schools.slice(0, 10)}>
@@ -256,7 +290,7 @@ const AEODashboard = ({ onLogout }) => {
         </div>
         <div className={`${styles.card} ${styles[theme]}`}>
           <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
-            🏫 School Performance Ranking
+            <IoSchoolOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> School Performance Ranking
           </h3>
           <div className={styles.schoolPerformanceList}>
             {schools.slice(0, 10).map((school, index) => {
@@ -295,7 +329,7 @@ const AEODashboard = ({ onLogout }) => {
 
       <div className={`${styles.fullWidthCard} ${styles[theme]}`}>
         <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
-          👥 Teacher Activity Status
+          <IoPeopleOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Teacher Activity Status
         </h3>
         <div className={`${styles.teacherList} ${styles[theme]}`}>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>

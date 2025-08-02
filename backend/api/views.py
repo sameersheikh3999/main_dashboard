@@ -1684,3 +1684,158 @@ class AdminDetailedDataView(APIView):
             
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Admin Messaging
+class AdminMessageCreateView(APIView):
+    """Admin endpoint to send messages to any user"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Check if user is admin (superuser)
+        if not request.user.is_superuser:
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        receiver_id = request.data.get('receiver_id')
+        message_text = request.data.get('message_text')
+        
+        if not all([receiver_id, message_text]):
+            return Response({
+                'error': 'Missing required fields: receiver_id, message_text'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            sender = request.user
+            
+            # Try to find receiver in local database first
+            receiver = None
+            receiver_school = 'Admin Message'
+            receiver_username = None
+            
+            try:
+                receiver = User.objects.get(id=receiver_id)
+                receiver_username = receiver.username
+                if hasattr(receiver, 'userprofile') and receiver.userprofile.school_name:
+                    receiver_school = receiver.userprofile.school_name
+            except User.DoesNotExist:
+                # If not found in local database, check if it's an AEO from BigQuery
+                # For AEOs, the ID is generated from sector name hash
+                # We need to create a virtual user for messaging purposes
+                print(f"User {receiver_id} not found in local database, checking if it's an AEO...")
+                
+                # Try to get AEO info from BigQuery or create a virtual user
+                try:
+                    # Initialize BigQuery client
+                    client = bigquery.Client()
+                    
+                    # Query to get all AEOs and find the one with matching ID
+                    query = """
+                    SELECT DISTINCT
+                        e.Sector as sector_name,
+                        CONCAT('aeo_', LOWER(REPLACE(e.Sector, ' ', '_'))) as username,
+                        CONCAT('AEO ', e.Sector) as display_name
+                    FROM `tbproddb.FDE_Schools` e
+                    WHERE e.Sector IS NOT NULL AND e.Sector != ''
+                    ORDER BY e.Sector
+                    """
+                    
+                    query_job = client.query(query)
+                    results = list(query_job.result())
+                    
+                    # Find AEO with matching hash ID
+                    for row in results:
+                        aeo_id = hash(row.sector_name) % 1000000
+                        if aeo_id == receiver_id:
+                            receiver_username = row.username
+                            receiver_school = row.sector_name
+                            print(f"Found AEO: {receiver_username} from sector {receiver_school}")
+                            
+                            # Try to find the AEO in local database by username
+                            try:
+                                receiver = User.objects.get(username=receiver_username)
+                                print(f"Found AEO in local database: {receiver.username} (ID: {receiver.id})")
+                            except User.DoesNotExist:
+                                print(f"AEO {receiver_username} not found in local database, will use virtual user")
+                            break
+                    else:
+                        return Response({'error': 'Receiver user not found in local database or BigQuery'}, status=status.HTTP_404_NOT_FOUND)
+                        
+                except Exception as e:
+                    print(f"Error checking BigQuery for AEO: {e}")
+                    return Response({'error': 'Receiver user not found and could not verify in external data'}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Create a special conversation for admin messages
+            # Use a unique school name to identify admin messages
+            admin_school_name = f"Admin Broadcast - {receiver_username}"
+            
+            # For admin messaging, we need to create conversations that the recipient can see
+            # For AEO users, they see conversations where they are the AEO
+            # For Principal users, they see conversations where they are the Principal
+            # For FDE users, they see conversations where they are the Principal
+            
+            if receiver:
+                # User exists in local database - check their role
+                user_role = receiver.userprofile.role if hasattr(receiver, 'userprofile') else 'Unknown'
+                
+                if user_role == 'AEO':
+                    # AEO users see conversations where they are the AEO
+                    conversation, created = Conversation.objects.get_or_create(
+                        school_name=admin_school_name,
+                        aeo=receiver,  # Recipient as AEO
+                        principal=sender,  # Admin as Principal
+                        defaults={'id': str(uuid4())}
+                    )
+                else:
+                    # Principal/FDE users see conversations where they are the Principal
+                    conversation, created = Conversation.objects.get_or_create(
+                        school_name=admin_school_name,
+                        aeo=sender,  # Admin as AEO
+                        principal=receiver,  # Recipient as Principal
+                        defaults={'id': str(uuid4())}
+                    )
+            else:
+                # User doesn't exist in local database (AEO from BigQuery)
+                # Since we can't reference a non-existent user, we'll create a special conversation
+                # that the admin can see, and the AEO will need to be created in local DB to see it
+                conversation, created = Conversation.objects.get_or_create(
+                    school_name=admin_school_name,
+                    aeo=sender,  # Admin as AEO
+                    principal=sender,  # Admin as Principal (workaround)
+                    defaults={'id': str(uuid4())}
+                )
+            
+            if created:
+                print(f"Created admin conversation: {conversation.id}")
+            
+            # Create the message
+            if receiver:
+                # User exists in local database
+                message = Message.objects.create(
+                    id=str(uuid4()),
+                    conversation=conversation,
+                    sender=sender,
+                    receiver=receiver,
+                    school_name=receiver_school,
+                    message_text=message_text
+                )
+            else:
+                # User doesn't exist in local database - create message with sender as receiver
+                # This is a workaround to store the message
+                message = Message.objects.create(
+                    id=str(uuid4()),
+                    conversation=conversation,
+                    sender=sender,
+                    receiver=sender,  # Workaround: use sender as receiver
+                    school_name=receiver_school,
+                    message_text=message_text
+                )
+            
+            # Update the conversation's last_message_at
+            conversation.last_message_at = timezone.now()
+            conversation.save()
+            
+            serializer = MessageSerializer(message)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
