@@ -101,26 +101,16 @@ class Command(BaseCommand):
             SELECT  
                 a.user_id, 
                 d.user_name as Teacher, 
-                b.label as Grade, 
-                c.label as Subject, 
                 e.Sector, 
                 e.EMIS, 
                 e.Institute as School, 
-                a.week_start, 
-                a.week_end, 
-                a.week_number,
-                LEAST(IFNULL(lp_started, 0) / max_classes, 1) * 100 AS lp_ratio
+                AVG(LEAST(IFNULL(lp_started, 0) / max_classes, 1) * 100) AS lp_ratio
             FROM `tbproddb.weekly_time_table_NF` a 
-            INNER JOIN `tbproddb.slo_grade` b ON a.grade_assigned=b.id 
-            INNER JOIN `tbproddb.slo_subject` c ON a.subject_assigned=c.id 
             INNER JOIN `tbproddb.user_school_profiles` d ON a.user_id=d.user_id 
             INNER JOIN `tbproddb.FDE_Schools` e ON d.emis_1=e.EMIS
             WHERE max_classes != 0 
-            GROUP BY user_id, d.user_name, e.Sector, b.label, c.label, e.EMIS, e.Institute, 
-                     a.week_start, a.week_end, a.week_number,
-                     LEAST(IFNULL(lp_started, 0) / max_classes, 1) * 100
-            ORDER BY e.Institute, d.user_name, a.week_start DESC
-            LIMIT 10000
+            GROUP BY user_id, d.user_name, e.Sector, e.EMIS, e.Institute
+            ORDER BY e.Institute, d.user_name
             """
 
             query_job = client.query(query)
@@ -132,14 +122,14 @@ class Command(BaseCommand):
                 teacher_data_list.append(TeacherData(
                     user_id=row.user_id,
                     teacher=row.Teacher,
-                    grade=row.Grade,
-                    subject=row.Subject,
+                    grade='N/A',
+                    subject='N/A',
                     sector=row.Sector,
                     emis=row.EMIS,
                     school=row.School,
-                    week_start=row.week_start,
-                    week_end=row.week_end,
-                    week_number=row.week_number,
+                    week_start=timezone.now().date(),
+                    week_end=timezone.now().date(),
+                    week_number=1,
                     lp_ratio=float(row.lp_ratio) if row.lp_ratio else 0
                 ))
 
@@ -204,7 +194,6 @@ class Command(BaseCommand):
             WHERE max_classes != 0
             GROUP BY e.Institute, e.Sector, period
             ORDER BY period DESC, e.Institute
-            LIMIT 1000
             """
 
             weekly_job = client.query(weekly_query)
@@ -226,7 +215,6 @@ class Command(BaseCommand):
             WHERE max_classes != 0
             GROUP BY e.Institute, e.Sector, period
             ORDER BY period DESC, e.Institute
-            LIMIT 1000
             """
 
             monthly_job = client.query(monthly_query)

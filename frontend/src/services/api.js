@@ -176,6 +176,11 @@ export const apiService = {
     return retryRequest(() => makeRequest(`${API_BASE_URL}/aeos/by-sector/?sector=${encodeURIComponent(sector)}`));
   },
 
+  // AEO sector schools with WiFi and activity data
+  getAEOSectorSchools: async () => {
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/aeos/sector-schools/`));
+  },
+
   // BigQuery endpoints
   getBigQueryTeacherData: async (filters = {}) => {
     const params = new URLSearchParams();
@@ -239,7 +244,24 @@ export const apiService = {
     return retryRequest(() => 
       makeRequest(`${API_BASE_URL}/enhanced-schools/`)
     );
-  }
+  },
+
+  // Admin dashboard endpoints
+  getAdminDashboard: async (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/admin/dashboard/?${params}`));
+  },
+
+  getAdminDetailedData: async (dataType, filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/admin/data/${dataType}/?${params}`));
+  },
 };
 
 // Utility functions

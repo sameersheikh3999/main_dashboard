@@ -1,413 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import styled, { createGlobalStyle } from 'styled-components';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid
 } from 'recharts';
 import { apiService } from '../services/api';
 import MessagingModal from './MessagingModal';
 import MessagingSidebar from './MessagingSidebar';
-
-// Global theme styles
-const GlobalStyle = createGlobalStyle`
-  body {
-    background: ${props => props.theme === 'dark' ? '#0f172a' : '#f8fafc'};
-    color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-    transition: all 0.3s ease;
-  }
-`;
-
-const DashboardContainer = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px 20px;
-  min-height: 100vh;
-  background: ${props => props.theme === 'dark' ? '#0f172a' : '#f8fafc'};
-  transition: all 0.3s ease;
-`;
-
-const Header = styled.header`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 32px;
-  position: relative;
-`;
-
-const TopBar = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: ${props => props.theme === 'dark' ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)'};
-  padding: 20px 24px;
-  border-radius: 16px;
-  box-shadow: ${props => props.theme === 'dark' ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)'};
-  border: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-`;
-
-const Title = styled.h1`
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 0;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-`;
-
-const Subtitle = styled.div`
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-size: 1rem;
-  font-weight: 500;
-`;
-
-const HeaderActions = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: center;
-`;
-
-const ThemeToggleBtn = styled.button`
-  background: ${props => props.theme === 'dark' ? 'rgba(51, 65, 85, 0.5)' : 'rgba(248, 250, 252, 0.8)'};
-  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-  border: 1px solid ${props => props.theme === 'dark' ? '#475569' : '#e2e8f0'};
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  
-  &:hover {
-    background: ${props => props.theme === 'dark' ? 'rgba(71, 85, 105, 0.8)' : 'rgba(241, 245, 249, 0.9)'};
-    transform: translateY(-1px);
-  }
-  
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
-
-const MessagingBtn = styled.button`
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  padding: 12px 20px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.95rem;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.2);
-  position: relative;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s;
-  }
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
-    
-    &::before {
-      left: 100%;
-    }
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
-  
-  svg {
-    width: 18px;
-    height: 18px;
-    transition: transform 0.2s ease;
-  }
-  
-  &:hover svg {
-    transform: scale(1.1);
-  }
-`;
-
-const MessageCountBadge = styled.div`
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #ef4444;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  animation: ${props => props.hasUnread ? 'pulse 2s infinite' : 'none'};
-  
-  @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-    100% { transform: scale(1); }
-  }
-`;
-
-const LogoutBtn = styled.button`
-  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 20px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  
-  &:hover {
-    background: linear-gradient(90deg, #dc2626 0%, #b91c1c 100%);
-    transform: translateY(-1px);
-  }
-`;
-
-const SummaryGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
-`;
-
-const SummaryCard = styled.div`
-  background: ${props => props.theme === 'dark' ? 'rgba(51, 65, 85, 0.5)' : 'rgba(255, 255, 255, 0.9)'};
-  border: 1px solid ${props => props.theme === 'dark' ? '#475569' : '#e2e8f0'};
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: ${props => props.theme === 'dark' ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)'};
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: ${props => props.theme === 'dark' ? '0 8px 30px rgba(0,0,0,0.4)' : '0 8px 30px rgba(0,0,0,0.12)'};
-  }
-`;
-
-const SummaryTitle = styled.h3`
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-size: 0.9rem;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const SummaryValue = styled.div`
-  font-size: 2.5rem;
-  font-weight: 800;
-  margin: 0 0 8px 0;
-  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-`;
-
-const SummarySub = styled.div`
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-size: 0.85rem;
-  font-weight: 500;
-`;
-
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
-`;
-
-const Card = styled.div`
-  background: ${props => props.theme === 'dark' ? 'rgba(51, 65, 85, 0.5)' : 'rgba(255, 255, 255, 0.9)'};
-  border: 1px solid ${props => props.theme === 'dark' ? '#475569' : '#e2e8f0'};
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: ${props => props.theme === 'dark' ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)'};
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: ${props => props.theme === 'dark' ? '0 6px 25px rgba(0,0,0,0.35)' : '0 6px 25px rgba(0,0,0,0.1)'};
-  }
-`;
-
-const SectionTitle = styled.h2`
-  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0 0 20px 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const FullWidthCard = styled.div`
-  background: ${props => props.theme === 'dark' ? 'rgba(51, 65, 85, 0.5)' : 'rgba(255, 255, 255, 0.9)'};
-  border: 1px solid ${props => props.theme === 'dark' ? '#475569' : '#e2e8f0'};
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: ${props => props.theme === 'dark' ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)'};
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-  margin-bottom: 32px;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: ${props => props.theme === 'dark' ? '0 6px 25px rgba(0,0,0,0.35)' : '0 6px 25px rgba(0,0,0,0.1)'};
-  }
-`;
-
-const SchoolsList = styled.div`
-  max-height: 400px;
-  overflow-y: auto;
-  
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: ${props => props.theme === 'dark' ? '#334155' : '#f1f5f9'};
-    border-radius: 4px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: ${props => props.theme === 'dark' ? '#64748b' : '#cbd5e1'};
-    border-radius: 4px;
-  }
-  
-  &::-webkit-scrollbar-thumb:hover {
-    background: ${props => props.theme === 'dark' ? '#94a3b8' : '#94a3b8'};
-  }
-`;
-
-const SchoolItem = styled.li`
-  padding: 12px 16px;
-  margin-bottom: 8px;
-  border: 1px solid ${props => props.inactive ? 'red' : 'transparent'};
-  border-radius: 8px;
-  border-left: 4px solid ${props => props.inactive
-    ? props.theme === 'dark'
-      ? '#ef4444'
-      : '#e2e8f0'
-    : 'transparent'};
-  transition: all 0.2s ease;
-  color: ${props => props.inactive ? '#333' : 'inherit'};
-  
-  &:hover {
-    transform: translateX(4px);
-    box-shadow: ${props => props.theme === 'dark' ? '0 4px 12px rgba(255, 0, 0, 0.3)' : '0 4px 12px rgba(0,0,0,0.1)'};
-  }
-  
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: 500;
-`;
-
-const StatusTag = styled.span`
-  display: inline-block;
-  margin-left: 12px;
-  padding: 3px 12px;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #fff;
-  background: ${props => props.active ? 'linear-gradient(90deg, #10b981 0%, #22d3ee 100%)' : 'red'};
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  letter-spacing: 0.5px;
-`;
-
-const LoadingSpinner = styled.div`
-  text-align: center;
-  padding: 80px 40px;
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-size: 1.1rem;
-  font-weight: 500;
-  
-  &::before {
-    content: '⏳';
-    display: block;
-    font-size: 3rem;
-    margin-bottom: 16px;
-    animation: spin 2s linear infinite;
-  }
-  
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-`;
-
-const AskPrincipalButton = styled.button`
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  cursor: pointer;
-  margin-left: 16px;
-  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.2);
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  position: relative;
-  overflow: hidden;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    transition: left 0.5s;
-  }
-  
-  &:hover {
-    background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
-    
-    &::before {
-      left: 100%;
-    }
-  }
-  
-  &:active {
-    transform: translateY(0);
-  }
-  
-  svg {
-    width: 16px;
-    height: 16px;
-    transition: transform 0.2s ease;
-  }
-  
-  &:hover svg {
-    transform: scale(1.1);
-  }
-`;
+import styles from './AEODashboard.module.css';
 
 const AEODashboard = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
@@ -424,6 +22,13 @@ const AEODashboard = ({ onLogout }) => {
   const [user, setUser] = useState(null);
   const [userSector, setUserSector] = useState('');
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+
+  // Apply theme to body
+  useEffect(() => {
+    document.body.style.background = theme === 'dark' ? '#0f172a' : '#f8fafc';
+    document.body.style.color = theme === 'dark' ? '#e2e8f0' : '#1e293b';
+    document.body.style.transition = 'all 0.3s ease';
+  }, [theme]);
 
   useEffect(() => {
     // Get current user info
@@ -461,27 +66,37 @@ const AEODashboard = ({ onLogout }) => {
         return;
       }
 
-      // Fetch data filtered by sector
-      const [summary, allSchools] = await Promise.all([
-        apiService.getBigQuerySummaryStats({ sector: sector }),
-        apiService.getBigQueryAllSchools()
-      ]);
-
-      // Filter schools by sector
-      const sectorSchools = allSchools.filter(school => school.sector === sector);
+      // Fetch sector schools with WiFi and activity data
+      const sectorSchools = await apiService.getAEOSectorSchools();
       
-      console.log('Filtered schools for sector:', sector, 'Count:', sectorSchools.length);
+      console.log('Sector schools with WiFi and activity data:', sectorSchools);
       
       // Calculate sector-specific metrics
       const totalSchoolsInSector = sectorSchools.length;
+      
+      // Calculate WiFi statistics
+      const schoolsWithWiFi = sectorSchools.filter(school => school.wifi_available).length;
+      const wifiPercentage = totalSchoolsInSector > 0 ? (schoolsWithWiFi / totalSchoolsInSector * 100) : 0;
+      
+      // Calculate activity statistics
+      const activeSchools = sectorSchools.filter(school => school.activity_status === 'Active').length;
+      const activityPercentage = totalSchoolsInSector > 0 ? (activeSchools / totalSchoolsInSector * 100) : 0;
       
       // Calculate average LP ratio for the sector
       const schoolsWithLP = sectorSchools.filter(school => school.avg_lp_ratio !== null && school.avg_lp_ratio !== undefined);
       const totalLP = schoolsWithLP.reduce((sum, school) => sum + (school.avg_lp_ratio || 0), 0);
       const avgLPRatio = schoolsWithLP.length > 0 ? totalLP / schoolsWithLP.length : 0;
       
+      // Calculate total teacher count across all schools in the sector
+      const totalTeachers = sectorSchools.reduce((sum, school) => sum + (school.teacher_count || 0), 0);
+      
       console.log('Sector metrics:', {
         totalSchools: totalSchoolsInSector,
+        totalTeachers: totalTeachers,
+        schoolsWithWiFi: schoolsWithWiFi,
+        wifiPercentage: wifiPercentage,
+        activeSchools: activeSchools,
+        activityPercentage: activityPercentage,
         schoolsWithLP: schoolsWithLP.length,
         totalLP: totalLP,
         avgLPRatio: avgLPRatio
@@ -489,8 +104,12 @@ const AEODashboard = ({ onLogout }) => {
       
       // Update summary stats with sector-specific calculations
       const sectorSummaryStats = {
-        ...summary,
         total_schools: totalSchoolsInSector,
+        total_teachers: totalTeachers,
+        schools_with_wifi: schoolsWithWiFi,
+        wifi_percentage: wifiPercentage,
+        active_schools: activeSchools,
+        activity_percentage: activityPercentage,
         overall_avg_lp_ratio: avgLPRatio
       };
       
@@ -513,54 +132,50 @@ const AEODashboard = ({ onLogout }) => {
 
   const handleMessageSent = () => {
     // This will be called when a message is sent through the modal
-    // The MessagingSidebar will handle its own refresh
     console.log('Message sent successfully');
     // Refresh unread message count
     loadUnreadMessageCount();
   };
 
   const getPerformanceColor = (score) => {
-    if (score < 30) return '#ef4444'; // Red
-    if (score < 70) return '#f59e0b'; // Yellow
-    return '#10b981'; // Green
+    if (score >= 80) return '#10b981'; // Green
+    if (score >= 60) return '#f59e0b'; // Yellow
+    if (score >= 40) return '#ef4444'; // Red
+    return '#6b7280'; // Gray
   };
 
   if (loading) {
     return (
-      <DashboardContainer theme={theme}>
-        <GlobalStyle theme={theme} />
-        <LoadingSpinner theme={theme}>
-          Loading {userSector} Sector Dashboard...
-        </LoadingSpinner>
-      </DashboardContainer>
+      <div className={`${styles.dashboardContainer} ${styles[theme]}`}>
+        <div className={`${styles.loadingSpinner} ${styles[theme]}`}>Loading AEO Dashboard...</div>
+      </div>
     );
   }
 
   return (
-    <DashboardContainer theme={theme}>
-      <GlobalStyle theme={theme} />
+    <div className={`${styles.dashboardContainer} ${styles[theme]}`}>
       
-      <Header>
-        <TopBar theme={theme}>
+      <header className={styles.header}>
+        <div className={`${styles.topBar} ${styles[theme]}`}>
           <div>
-            <Title>{userSector} Sector - AEO Dashboard</Title>
-            <Subtitle theme={theme}>
+            <h1 className={styles.title}>{userSector} Sector - AEO Dashboard</h1>
+            <div className={`${styles.subtitle} ${styles[theme]}`}>
               Sector-specific oversight of educational performance and school management
-            </Subtitle>
+            </div>
           </div>
-          <HeaderActions>
-            <MessagingBtn onClick={toggleMessagingSidebar}>
+          <div className={styles.headerActions}>
+            <button className={styles.messagingBtn} onClick={toggleMessagingSidebar}>
               <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/>
               </svg>
               Messages
               {unreadMessageCount > 0 && (
-                <MessageCountBadge hasUnread={unreadMessageCount > 0}>
+                <div className={`${styles.messageCountBadge} ${unreadMessageCount > 0 ? styles.hasUnread : ''}`}>
                   {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
-                </MessageCountBadge>
+                </div>
               )}
-            </MessagingBtn>
-            <ThemeToggleBtn theme={theme} onClick={toggleTheme}>
+            </button>
+            <button className={`${styles.themeToggleBtn} ${styles[theme]}`} onClick={toggleTheme}>
               {theme === 'light' ? (
                 <>
                   <svg fill="currentColor" viewBox="0 0 20 20">
@@ -576,40 +191,45 @@ const AEODashboard = ({ onLogout }) => {
                   Light
                 </>
               )}
-            </ThemeToggleBtn>
-            <LogoutBtn onClick={onLogout}>Logout</LogoutBtn>
-          </HeaderActions>
-        </TopBar>
-      </Header>
+            </button>
+            <button className={styles.logoutBtn} onClick={onLogout}>Logout</button>
+          </div>
+        </div>
+      </header>
 
-      <SummaryGrid>
-        <SummaryCard theme={theme} gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)">
-          <SummaryTitle theme={theme}>Total Schools</SummaryTitle>
-          <SummaryValue theme={theme} style={{ color: '#10b981' }}>{summaryStats.total_schools || schools.length}</SummaryValue>
-          <SummarySub theme={theme}>In {userSector} Sector</SummarySub>
-        </SummaryCard>
-        <SummaryCard theme={theme} gradient="linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)">
-          <SummaryTitle theme={theme}>Total Teachers</SummaryTitle>
-          <SummaryValue theme={theme} style={{ color: '#8b5cf6' }}>{summaryStats.total_teachers || 0}</SummaryValue>
-          <SummarySub theme={theme}>Across {userSector} Schools</SummarySub>
-        </SummaryCard>
-        <SummaryCard theme={theme} gradient="linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)">
-          <SummaryTitle theme={theme}>Sector Avg LP Ratio</SummaryTitle>
-          <SummaryValue theme={theme} style={{ color: '#3b82f6' }}>{summaryStats.overall_avg_lp_ratio ? `${summaryStats.overall_avg_lp_ratio.toFixed(1)}%` : '0%'}</SummaryValue>
-          <SummarySub theme={theme}>Learning Progress Average</SummarySub>
-        </SummaryCard>
-        <SummaryCard theme={theme} gradient="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)">
-          <SummaryTitle theme={theme}>Active Schools</SummaryTitle>
-          <SummaryValue theme={theme} style={{ color: '#f59e0b' }}>{schools.filter(school => (school.avg_lp_ratio || 0) > 10).length}</SummaryValue>
-          <SummarySub theme={theme}>High Performance Schools</SummarySub>
-        </SummaryCard>
-      </SummaryGrid>
+      <div className={styles.summaryGrid}>
+        <div className={`${styles.summaryCard} ${styles[theme]}`}>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Total Schools</div>
+          <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#10b981' }}>{summaryStats.total_schools || schools.length}</div>
+          <div className={`${styles.summarySub} ${styles[theme]}`}>In {userSector} Sector</div>
+        </div>
+        <div className={`${styles.summaryCard} ${styles[theme]}`}>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Total Teachers</div>
+          <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#8b5cf6' }}>{summaryStats.total_teachers || 0}</div>
+          <div className={`${styles.summarySub} ${styles[theme]}`}>Across {userSector} Schools</div>
+        </div>
+        <div className={`${styles.summaryCard} ${styles[theme]}`}>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Sector Avg LP Ratio</div>
+          <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#3b82f6' }}>{summaryStats.overall_avg_lp_ratio ? `${summaryStats.overall_avg_lp_ratio.toFixed(1)}%` : '0%'}</div>
+          <div className={`${styles.summarySub} ${styles[theme]}`}>Learning Progress Average</div>
+        </div>
+        <div className={`${styles.summaryCard} ${styles[theme]}`}>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Active Schools</div>
+          <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#f59e0b' }}>{summaryStats.active_schools || 0}</div>
+          <div className={`${styles.summarySub} ${styles[theme]}`}>Schools with {'>'}10% Active Teachers</div>
+        </div>
+        <div className={`${styles.summaryCard} ${styles[theme]}`}>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>WiFi Available</div>
+          <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#10b981' }}>{summaryStats.schools_with_wifi || 0}</div>
+          <div className={`${styles.summarySub} ${styles[theme]}`}>{summaryStats.wifi_percentage ? `${summaryStats.wifi_percentage.toFixed(1)}%` : '0%'} of Schools</div>
+        </div>
+      </div>
 
-      <Grid>
-        <Card theme={theme}>
-          <SectionTitle theme={theme}>
+      <div className={styles.grid}>
+        <div className={`${styles.card} ${styles[theme]}`}>
+          <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
             📊 Sector Performance Overview
-          </SectionTitle>
+          </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={schools.slice(0, 10)}>
               <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#475569' : '#e2e8f0'} />
@@ -626,119 +246,77 @@ const AEODashboard = ({ onLogout }) => {
                 contentStyle={{
                   background: theme === 'dark' ? '#1e293b' : '#ffffff',
                   border: `1px solid ${theme === 'dark' ? '#475569' : '#e2e8f0'}`,
-                  borderRadius: '8px'
+                  borderRadius: '8px',
+                  color: theme === 'dark' ? '#e2e8f0' : '#1e293b'
                 }}
               />
-              <Bar dataKey="avg_lp_ratio" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="avg_lp_ratio" fill="#3b82f6" />
             </BarChart>
           </ResponsiveContainer>
-        </Card>
+        </div>
+        <div className={`${styles.card} ${styles[theme]}`}>
+          <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
+            🏫 School Performance Ranking
+          </h3>
+          <div className={styles.schoolPerformanceList}>
+            {schools.slice(0, 10).map((school, index) => {
+              const performanceColor = getPerformanceColor(school.avg_lp_ratio || 0);
+              return (
+                <div 
+                  key={school.emis} 
+                  className={`${styles.schoolPerformanceItem} ${styles[theme]}`}
+                  style={{ borderLeftColor: performanceColor }}
+                >
+                  <div className={styles.schoolInfo}>
+                    <div className={styles.schoolRank} style={{ background: performanceColor }}>
+                      {index + 1}
+                    </div>
+                    <div className={styles.schoolDetails}>
+                      <div className={`${styles.schoolName} ${styles[theme]}`}>{school.school_name}</div>
+                      <div className={`${styles.schoolStats} ${styles[theme]}`}>
+                        {school.teacher_count || 0} teachers • LP: {school.avg_lp_ratio ? `${school.avg_lp_ratio.toFixed(1)}%` : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.schoolPerformance}>
+                    <div className={styles.performanceScore} style={{ color: performanceColor }}>
+                      {school.avg_lp_ratio ? `${school.avg_lp_ratio.toFixed(1)}%` : 'N/A'}
+                    </div>
+                    <div className={`${styles.performanceLabel} ${styles[theme]}`}>
+                      {school.avg_lp_ratio >= 80 ? 'Excellent' : school.avg_lp_ratio >= 60 ? 'Good' : school.avg_lp_ratio >= 40 ? 'Fair' : 'Needs Improvement'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
-        <Card theme={theme}>
-          <SectionTitle theme={theme}>
-            🎯 Performance Distribution
-          </SectionTitle>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={[
-                  { name: 'High Performance (>10%)', value: schools.filter(s => (s.avg_lp_ratio || 0) > 10).length, color: '#10b981' },
-                  { name: 'Medium Performance (5-10%)', value: schools.filter(s => (s.avg_lp_ratio || 0) >= 5 && (s.avg_lp_ratio || 0) <= 10).length, color: '#f59e0b' },
-                  { name: 'Low Performance (<5%)', value: schools.filter(s => (s.avg_lp_ratio || 0) < 5).length, color: '#ef4444' }
-                ]}
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                dataKey="value"
-                label={({ name, value }) => `${name}: ${value}`}
-              >
-                {[
-                  { name: 'High Performance (>10%)', value: schools.filter(s => (s.avg_lp_ratio || 0) > 10).length, color: '#10b981' },
-                  { name: 'Medium Performance (5-10%)', value: schools.filter(s => (s.avg_lp_ratio || 0) >= 5 && (s.avg_lp_ratio || 0) <= 10).length, color: '#f59e0b' },
-                  { name: 'Low Performance (<5%)', value: schools.filter(s => (s.avg_lp_ratio || 0) < 5).length, color: '#ef4444' }
-                ].map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{
-                  background: theme === 'dark' ? '#1e293b' : '#ffffff',
-                  border: `1px solid ${theme === 'dark' ? '#475569' : '#e2e8f0'}`,
-                  borderRadius: '8px'
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
-      </Grid>
-
-      <FullWidthCard theme={theme}>
-        <SectionTitle theme={theme}>
-          🏫 {userSector} Sector Schools (Low to High Performance)
-          <span style={{ 
-            fontSize: '0.9rem', 
-            color: theme === 'dark' ? '#94a3b8' : '#64748b', 
-            fontWeight: 'normal', 
-            marginLeft: '8px' 
-          }}>
-            ({schools.length} schools)
-          </span>
-        </SectionTitle>
-        <SchoolsList theme={theme}>
+      <div className={`${styles.fullWidthCard} ${styles[theme]}`}>
+        <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
+          👥 Teacher Activity Status
+        </h3>
+        <div className={`${styles.teacherList} ${styles[theme]}`}>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {schools
-              .sort((a, b) => (a.avg_lp_ratio || 0) - (b.avg_lp_ratio || 0)) // Sort from low to high performance
-              .map(school => {
-                const avgLP = school.avg_lp_ratio || 0;
-                const isActive = avgLP > 10;
-                return (
-                  <SchoolItem key={school.emis} theme={theme} inactive={!isActive}>
-                    <div>
-                      {school.school_name}
-                      <span style={{ 
-                        fontSize: '0.85rem', 
-                        color: theme === 'dark' ? '#94a3b8' : '#64748b',
-                        marginLeft: '8px'
-                      }}>
-                        (EMIS: {school.emis})
-                      </span>
-                      <span style={{ 
-                        fontSize: '0.85rem', 
-                        color: theme === 'dark' ? '#94a3b8' : '#64748b',
-                        marginLeft: '8px',
-                        fontWeight: 'bold'
-                      }}>
-                        - LP: {avgLP.toFixed(1)}%
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <StatusTag active={isActive}>{isActive ? 'Active' : 'Inactive'}</StatusTag>
-                      <AskPrincipalButton onClick={() => setMessagingModal({ 
-                        isOpen: true, 
-                        principalId: `principal_${school.emis}`, 
-                        schoolName: school.school_name, 
-                        type: 'school' 
-                      })}>
-                        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="18" height="18">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/>
-                        </svg>
-                        Ask Principal
-                      </AskPrincipalButton>
-                    </div>
-                  </SchoolItem>
-                );
-              })}
+            {schools.slice(0, 20).map(school => (
+              <li key={school.emis} className={`${styles.teacherItem} ${styles[theme]}`}>
+                {school.school_name} ({school.teacher_count || 0} teachers)
+                <span className={`${styles.teacherStatus} ${school.activity_status === 'Active' ? styles.active : styles.inactive}`}>
+                  {school.activity_status || 'Unknown'}
+                </span>
+              </li>
+            ))}
           </ul>
-        </SchoolsList>
-      </FullWidthCard>
+        </div>
+      </div>
 
       {/* Messaging Modal */}
       <MessagingModal
         isOpen={messagingModal.isOpen}
         onClose={() => setMessagingModal({ ...messagingModal, isOpen: false })}
         schoolName={messagingModal.schoolName}
-        schoolData={null}
-        theme={theme}
+        schoolData={{ id: messagingModal.principalId, name: messagingModal.schoolName }}
         onMessageSent={handleMessageSent}
       />
 
@@ -749,7 +327,7 @@ const AEODashboard = ({ onLogout }) => {
         theme={theme}
         onMessagesRead={loadUnreadMessageCount}
       />
-    </DashboardContainer>
+    </div>
   );
 };
 

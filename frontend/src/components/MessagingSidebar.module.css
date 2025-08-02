@@ -48,6 +48,21 @@
   }
 }
 
+@keyframes newMessageHighlight {
+  0% {
+    background-color: rgba(59, 130, 246, 0.1);
+    transform: translateY(0);
+  }
+  50% {
+    background-color: rgba(59, 130, 246, 0.2);
+    transform: translateY(-2px);
+  }
+  100% {
+    background-color: transparent;
+    transform: translateY(0);
+  }
+}
+
 /* Main Container */
 .sidebarContainer {
   position: fixed;
@@ -338,6 +353,16 @@
 
 .conversationItem.dark:hover {
   background: #475569;
+}
+
+.conversationItem.newMessage {
+  animation: newMessageHighlight 1s ease-out;
+}
+
+.conversationItem.recentlyUpdated {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-left: 3px solid #3b82f6;
+  animation: newMessageHighlight 2s ease-out;
 }
 
 .conversationHeader {

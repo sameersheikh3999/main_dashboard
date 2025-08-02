@@ -1,542 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import styled, { createGlobalStyle } from 'styled-components';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line
 } from 'recharts';
 import { apiService } from '../services/api';
 import MessagingModal from './MessagingModal';
 import MessagingSidebar from './MessagingSidebar';
+import styles from './FDEDashboard.module.css';
 
-// Global theme styles
-const GlobalStyle = createGlobalStyle`
-  body {
-    background: ${props => props.theme === 'dark' ? '#0f172a' : '#f8fafc'};
-    color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-    transition: all 0.3s ease;
-  }
-`;
-
-const DashboardContainer = styled.div`
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 24px 20px;
-  min-height: 100vh;
-  background: ${props => props.theme === 'dark' ? '#0f172a' : '#f8fafc'};
-  transition: all 0.3s ease;
-`;
-
-const Header = styled.header`
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 32px;
-  position: relative;
-`;
-
-const TopBar = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: ${props => props.theme === 'dark' ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)'};
-  padding: 20px 24px;
-  border-radius: 16px;
-  box-shadow: ${props => props.theme === 'dark' ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)'};
-  border: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-`;
-
-const Title = styled.h1`
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 0;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-`;
-
-const Subtitle = styled.div`
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-size: 1rem;
-  font-weight: 500;
-`;
-
-const HeaderActions = styled.div`
-  display: flex;
-  gap: 12px;
-  align-items: center;
-`;
-
-const ThemeToggleBtn = styled.button`
-  background: ${props => props.theme === 'dark' ? 'linear-gradient(135deg, #475569 0%, #64748b 100%)' : 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'};
-  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#475569'};
-  border: 2px solid ${props => props.theme === 'dark' ? '#475569' : '#cbd5e1'};
-  border-radius: 12px;
-  padding: 10px 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-  }
-  
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
-
-const MessagingBtn = styled.button`
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  padding: 10px 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
-  }
-  
-  svg {
-    width: 16px;
-    height: 16px;
-  }
-`;
-
-const LogoutBtn = styled.button`
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  padding: 10px 20px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
-  }
-`;
-
-const SectorFilterContainer = styled.div`
-  margin-bottom: 32px;
-  background: ${props => props.theme === 'dark' ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'};
-  padding: 24px;
-  border-radius: 16px;
-  box-shadow: ${props => props.theme === 'dark' ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)'};
-  border: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-`;
-
-const SectorFilterTitle = styled.h3`
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0 0 16px 0;
-  color: ${props => props.theme === 'dark' ? '#f1f5f9' : '#1e293b'};
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  
-  &::before {
-    content: '🎯';
-    font-size: 1.2rem;
-  }
-`;
-
-const SectorButtonsRow = styled.div`
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  @media (max-width: 768px) {
-    gap: 8px;
-  }
-`;
-
-const SectorButton = styled.button`
-  background: ${props => props.active 
-    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
-    : props.theme === 'dark' 
-      ? 'linear-gradient(135deg, #475569 0%, #64748b 100%)' 
-      : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)'
-  };
-  color: ${props => props.active ? '#ffffff' : props.theme === 'dark' ? '#e2e8f0' : '#475569'};
-  border: 2px solid ${props => props.active ? '#3b82f6' : props.theme === 'dark' ? '#475569' : '#cbd5e1'};
-  border-radius: 12px;
-  padding: 12px 20px;
-  font-weight: 600;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 90px;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.5s;
-  }
-  
-  &:hover::before {
-    left: 100%;
-  }
-  
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
-  }
-  
-  @media (max-width: 768px) {
-    padding: 10px 16px;
-    font-size: 0.9rem;
-    min-width: 80px;
-  }
-`;
-
-const SummaryGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
-  margin-bottom: 32px;
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const SummaryCard = styled.div`
-  background: ${props => props.theme === 'dark' ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'};
-  border-radius: 16px;
-  box-shadow: ${props => props.theme === 'dark' ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)'};
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  min-height: 120px;
-  border: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: ${props => props.gradient || 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)'};
-  }
-  
-  &:hover {
-    transform: translateY(-5px);
-    box-shadow: ${props => props.theme === 'dark' ? '0 8px 30px rgba(0,0,0,0.4)' : '0 8px 30px rgba(0,0,0,0.12)'};
-  }
-`;
-
-const SummaryTitle = styled.div`
-  font-size: 0.95rem;
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-weight: 600;
-  margin-bottom: 8px;
-`;
-
-const SummaryValue = styled.div`
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 8px 0;
-  color: ${props => props.theme === 'dark' ? '#f1f5f9' : '#1e293b'};
-`;
-
-const SummarySub = styled.div`
-  font-size: 0.85rem;
-  color: ${props => props.theme === 'dark' ? '#64748b' : '#94a3b8'};
-  font-weight: 500;
-`;
-
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
-  margin-bottom: 32px;
-  @media (max-width: 1200px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const Card = styled.div`
-  background: ${props => props.theme === 'dark' ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'};
-  border-radius: 16px;
-  box-shadow: ${props => props.theme === 'dark' ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)'};
-  padding: 28px;
-  border: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: ${props => props.theme === 'dark' ? '0 8px 30px rgba(0,0,0,0.4)' : '0 8px 30px rgba(0,0,0,0.12)'};
-  }
-`;
-
-const SectionTitle = styled.h3`
-  font-size: 1.3rem;
-  font-weight: 700;
-  margin: 0 0 20px 0;
-  color: ${props => props.theme === 'dark' ? '#f1f5f9' : '#1e293b'};
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  
-  &::before {
-    content: '📊';
-    font-size: 1.2rem;
-  }
-`;
-
-const FullWidthCard = styled.div`
-  background: ${props => props.theme === 'dark' ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'};
-  border-radius: 16px;
-  box-shadow: ${props => props.theme === 'dark' ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)'};
-  padding: 28px;
-  border: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-  transition: all 0.3s ease;
-  margin-bottom: 32px;
-  
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: ${props => props.theme === 'dark' ? '0 8px 30px rgba(0,0,0,0.4)' : '0 8px 30px rgba(0,0,0,0.12)'};
-  }
-`;
-
-const SectorPerformanceList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
-const SectorPerformanceItem = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  background: ${props => props.theme === 'dark' ? 'rgba(51, 65, 85, 0.5)' : 'rgba(248, 250, 252, 0.8)'};
-  border-radius: 12px;
-  border-left: 4px solid ${props => props.performanceColor};
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: ${props => props.theme === 'dark' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)'};
-    transform: translateX(4px);
-  }
-`;
-
-const SectorInfo = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const SectorRank = styled.div`
-  background: ${props => props.performanceColor};
-  color: white;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.9rem;
-`;
-
-const SectorDetails = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const SectorName = styled.div`
-  font-weight: 600;
-  color: ${props => props.theme === 'dark' ? '#f1f5f9' : '#1e293b'};
-  font-size: 1rem;
-`;
-
-const SectorStats = styled.div`
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-size: 0.85rem;
-  margin-top: 2px;
-`;
-
-const SectorPerformance = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-`;
-
-const PerformanceScore = styled.div`
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: ${props => props.performanceColor};
-`;
-
-const PerformanceLabel = styled.div`
-  font-size: 0.8rem;
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const SchoolsList = styled.div`
-  max-height: 400px;
-  overflow-y: auto;
-  font-size: 0.95rem;
-  padding-right: 8px;
-  
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: ${props => props.theme === 'dark' ? '#334155' : '#f1f5f9'};
-    border-radius: 3px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: ${props => props.theme === 'dark' ? '#64748b' : '#cbd5e1'};
-    border-radius: 3px;
-  }
-  
-  &::-webkit-scrollbar-thumb:hover {
-    background: ${props => props.theme === 'dark' ? '#94a3b8' : '#94a3b8'};
-  }
-`;
-
-const SchoolItem = styled.li`
-  padding: 12px 16px;
-  margin-bottom: 8px;
-  border: 1px solid ${props => props.inactive ? 'red' : 'transparent'};
-  border-radius: 8px;
-  border-left: 4px solid ${props => props.inactive
-    ? props.theme === 'dark'
-      ? '#ef4444'
-      : '#e2e8f0'
-    : 'transparent'};
-  transition: all 0.2s ease;
-  color: ${props => props.inactive ? '#333' : 'inherit'};
-  
-  &:hover {
-    background: ${props => props.inactive
-      ? 'linear-gradient(90deg, #ef4444 0%, #f59e0b 100%)'
-      : props.theme === 'dark' 
-        ? 'rgba(59, 130, 246, 0.1)' 
-        : 'rgba(59, 130, 246, 0.05)'};
-    transform: translateX(4px);
-    color: ${props => props.inactive ? '#fff' : 'inherit'};
-  }
-`;
-
-const StatusTag = styled.span`
-  display: inline-block;
-  margin-left: 12px;
-  padding: 3px 12px;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #fff;
-  background: ${props => props.active ? 'linear-gradient(90deg, #10b981 0%, #22d3ee 100%)' : 'linear-gradient(90deg, #ef4444 0%, #f59e0b 100%)'};
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  letter-spacing: 0.5px;
-`;
-
-const LoadingSpinner = styled.div`
-  text-align: center;
-  padding: 80px 40px;
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-size: 1.1rem;
-  font-weight: 500;
-  
-  &::before {
-    content: '⏳';
-    display: block;
-    font-size: 3rem;
-    margin-bottom: 16px;
-    animation: spin 2s linear infinite;
-  }
-  
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-`;
-
-const AskAEOButton = styled.button`
-  background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-weight: 700;
-  font-size: 0.95rem;
-  cursor: pointer;
-  margin-left: 18px;
-  box-shadow: 0 2px 8px rgba(59,130,246,0.08);
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  position: relative;
-  &:hover {
-    background: linear-gradient(90deg, #2563eb 0%, #0ea5e9 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(59,130,246,0.18);
-  }
-`;
-
-const MessageCountBadge = styled.div`
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #ef4444;
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 700;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  animation: ${props => props.hasUnread ? 'pulse 2s infinite' : 'none'};
-  
-  @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-    100% { transform: scale(1); }
-  }
-`;
+// Global theme styles - will be applied via useEffect
 
 const FDEDashboard = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
@@ -554,6 +25,13 @@ const FDEDashboard = ({ onLogout }) => {
   });
   const [messagingSidebarOpen, setMessagingSidebarOpen] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+
+  // Apply theme to body
+  useEffect(() => {
+    document.body.style.background = theme === 'dark' ? '#0f172a' : '#f8fafc';
+    document.body.style.color = theme === 'dark' ? '#e2e8f0' : '#1e293b';
+    document.body.style.transition = 'all 0.3s ease';
+  }, [theme]);
 
   // Define the 6 sectors
   const sectorList = ['B.K', 'Nilore', 'Sihala', 'Tarnol', 'Urban-I', 'Urban-II'];
@@ -675,38 +153,36 @@ const FDEDashboard = ({ onLogout }) => {
 
   if (loading) {
     return (
-      <DashboardContainer theme={theme}>
-        <GlobalStyle theme={theme} />
-        <LoadingSpinner theme={theme}>Loading FDE Dashboard...</LoadingSpinner>
-      </DashboardContainer>
+      <div className={`${styles.dashboardContainer} ${styles[theme]}`}>
+        <div className={`${styles.loadingSpinner} ${styles[theme]}`}>Loading FDE Dashboard...</div>
+      </div>
     );
   }
 
   return (
-    <DashboardContainer theme={theme}>
-      <GlobalStyle theme={theme} />
+    <div className={`${styles.dashboardContainer} ${styles[theme]}`}>
       
-      <Header>
-        <TopBar theme={theme}>
+      <header className={styles.header}>
+        <div className={`${styles.topBar} ${styles[theme]}`}>
           <div>
-          <Title>Federal Directorate of Education Dashboard</Title>
-            <Subtitle theme={theme}>
+            <h1 className={styles.title}>Federal Directorate of Education Dashboard</h1>
+            <div className={`${styles.subtitle} ${styles[theme]}`}>
               National oversight of educational performance and school management
-            </Subtitle>
+            </div>
           </div>
-          <HeaderActions>
-            <MessagingBtn onClick={toggleMessagingSidebar}>
+          <div className={styles.headerActions}>
+            <button className={styles.messagingBtn} onClick={toggleMessagingSidebar}>
               <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/>
               </svg>
               Messages
               {unreadMessageCount > 0 && (
-                <MessageCountBadge hasUnread={unreadMessageCount > 0}>
+                <div className={`${styles.messageCountBadge} ${unreadMessageCount > 0 ? styles.hasUnread : ''}`}>
                   {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
-                </MessageCountBadge>
+                </div>
               )}
-            </MessagingBtn>
-            <ThemeToggleBtn theme={theme} onClick={toggleTheme}>
+            </button>
+            <button className={`${styles.themeToggleBtn} ${styles[theme]}`} onClick={toggleTheme}>
               {theme === 'light' ? (
                 <>
                   <svg fill="currentColor" viewBox="0 0 20 20">
@@ -722,42 +198,42 @@ const FDEDashboard = ({ onLogout }) => {
                   Light
                 </>
               )}
-            </ThemeToggleBtn>
-          <LogoutBtn onClick={onLogout}>Logout</LogoutBtn>
-          </HeaderActions>
-        </TopBar>
-      </Header>
+            </button>
+            <button className={styles.logoutBtn} onClick={onLogout}>Logout</button>
+          </div>
+        </div>
+      </header>
 
      
 
-      <SummaryGrid>
-        <SummaryCard theme={theme} gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)">
-          <SummaryTitle theme={theme}>Total Schools</SummaryTitle>
-          <SummaryValue theme={theme} style={{ color: '#10b981' }}>{summaryStats.total_schools}</SummaryValue>
-          <SummarySub theme={theme}>Under FDE Management</SummarySub>
-         </SummaryCard>
-        <SummaryCard theme={theme} gradient="linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)">
-          <SummaryTitle theme={theme}>Total Teachers</SummaryTitle>
-          <SummaryValue theme={theme} style={{ color: '#8b5cf6' }}>{summaryStats.total_teachers}</SummaryValue>
-          <SummarySub theme={theme}>Across All Schools</SummarySub>
-        </SummaryCard>
-        <SummaryCard theme={theme} gradient="linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)">
-          <SummaryTitle theme={theme}>Total Sectors</SummaryTitle>
-          <SummaryValue theme={theme} style={{ color: '#3b82f6' }}>{summaryStats.total_sectors}</SummaryValue>
-          <SummarySub theme={theme}>Educational Sectors</SummarySub>
-        </SummaryCard>
-        <SummaryCard theme={theme} gradient="linear-gradient(135deg, #f59e0b 0%, #d97706 100%)">
-          <SummaryTitle theme={theme}>Avg LP Ratio</SummaryTitle>
-          <SummaryValue theme={theme} style={{ color: '#f59e0b' }}>
+      <div className={styles.summaryGrid}>
+        <div className={`${styles.summaryCard} ${styles[theme]}`}>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Total Schools</div>
+          <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#10b981' }}>{summaryStats.total_schools}</div>
+          <div className={`${styles.summarySub} ${styles[theme]}`}>Under FDE Management</div>
+        </div>
+        <div className={`${styles.summaryCard} ${styles[theme]}`}>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Total Teachers</div>
+          <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#8b5cf6' }}>{summaryStats.total_teachers}</div>
+          <div className={`${styles.summarySub} ${styles[theme]}`}>Across All Schools</div>
+        </div>
+        <div className={`${styles.summaryCard} ${styles[theme]}`}>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Total Sectors</div>
+          <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#3b82f6' }}>{summaryStats.total_sectors} 6 <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal' }}>(AEO)</span></div>
+          <div className={`${styles.summarySub} ${styles[theme]}`}>Educational Sectors</div>
+        </div>
+        <div className={`${styles.summaryCard} ${styles[theme]}`}>
+          <div className={`${styles.summaryTitle} ${styles[theme]}`}>Avg LP Ratio</div>
+          <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#f59e0b' }}>
             {Math.round(summaryStats.overall_avg_lp_ratio || 0)}%
-          </SummaryValue>
-          <SummarySub theme={theme}>National Average</SummarySub>
-        </SummaryCard>
-      </SummaryGrid>
+          </div>
+          <div className={`${styles.summarySub} ${styles[theme]}`}>National Average</div>
+        </div>
+      </div>
 
-      <Grid>
-        <Card theme={theme}>
-          <SectionTitle theme={theme}>Sector Distribution</SectionTitle>
+      <div className={styles.grid}>
+        <div className={`${styles.card} ${styles[theme]}`}>
+          <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>Sector Distribution</h3>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie
@@ -784,9 +260,9 @@ const FDEDashboard = ({ onLogout }) => {
               <Legend />
             </PieChart>
           </ResponsiveContainer>
-        </Card>
-        <Card theme={theme}>
-          <SectionTitle theme={theme}>
+        </div>
+        <div className={`${styles.card} ${styles[theme]}`}>
+          <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
             Sector Performance Ranking
             <span style={{ 
               fontSize: '0.9rem', 
@@ -796,35 +272,36 @@ const FDEDashboard = ({ onLogout }) => {
             }}>
               (Low to High Performing)
             </span>
-          </SectionTitle>
-          <SectorPerformanceList>
+          </h3>
+          <div className={styles.sectorPerformanceList}>
             {sectorPerformance.map((sector, index) => {
               const performanceColor = getPerformanceColor(index + 1, sectorPerformance.length);
               return (
-                <SectorPerformanceItem 
+                <div 
                   key={sector.name} 
-                  theme={theme}
-                  performanceColor={performanceColor}
+                  className={`${styles.sectorPerformanceItem} ${styles[theme]}`}
+                  style={{ borderLeftColor: performanceColor }}
                 >
-                  <SectorInfo>
-                    <SectorRank performanceColor={performanceColor}>
+                  <div className={styles.sectorInfo}>
+                    <div className={styles.sectorRank} style={{ background: performanceColor }}>
                       {index + 1}
-                    </SectorRank>
-                    <SectorDetails>
-                      <SectorName theme={theme}>{sector.name}</SectorName>
-                      <SectorStats theme={theme}>
+                    </div>
+                    <div className={styles.sectorDetails}>
+                      <div className={`${styles.sectorName} ${styles[theme]}`}>{sector.name}</div>
+                      <div className={`${styles.sectorStats} ${styles[theme]}`}>
                         {sector.schoolCount} schools • Avg LP: {sector.avgLPRatio.toFixed(1)}%
-                      </SectorStats>
-                    </SectorDetails>
-                  </SectorInfo>
-                  <SectorPerformance>
-                    <PerformanceScore performanceColor={performanceColor}>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.sectorPerformance}>
+                    <div className={styles.performanceScore} style={{ color: performanceColor }}>
                       {sector.performanceScore}%
-                    </PerformanceScore>
-                    <PerformanceLabel theme={theme}>
+                    </div>
+                    <div className={`${styles.performanceLabel} ${styles[theme]}`}>
                       {index === 0 ? 'Lowest' : index === sectorPerformance.length - 1 ? 'Highest' : 'Medium'}
-                    </PerformanceLabel>
-                    <AskAEOButton 
+                    </div>
+                    <button 
+                      className={styles.askAEOButton}
                       onClick={() => {
                         const aeoData = sectorAEOMap[sector.name];
                         if (aeoData) {
@@ -842,39 +319,37 @@ const FDEDashboard = ({ onLogout }) => {
                     >
                       <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="18" height="18"><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/></svg>
                       Ask AEO
-                    </AskAEOButton>
-                  </SectorPerformance>
-                </SectorPerformanceItem>
+                    </button>
+                  </div>
+                </div>
               );
             })}
-          </SectorPerformanceList>
-        </Card>
-      </Grid>
-      <SectorFilterContainer theme={theme}>
-        <SectorFilterTitle theme={theme}>Filter by Sector (AEO)</SectorFilterTitle>
-        <SectorButtonsRow>
-          <SectorButton 
-            theme={theme}
-            active={selectedSector === 'All'} 
+          </div>
+        </div>
+      </div>
+      <div className={`${styles.sectorFilterContainer} ${styles[theme]}`}>
+        <h3 className={`${styles.sectorFilterTitle} ${styles[theme]}`}>Filter by Sector (AEO)</h3>
+        <div className={styles.sectorButtonsRow}>
+          <button 
+            className={`${styles.sectorButton} ${styles[theme]} ${selectedSector === 'All' ? styles.active : ''}`}
             onClick={() => handleSectorClick('All')}
           >
             All
-          </SectorButton>
+          </button>
           {sectorList.map(sector => (
-            <SectorButton 
+            <button 
               key={sector}
-              theme={theme}
-              active={selectedSector === sector} 
+              className={`${styles.sectorButton} ${styles[theme]} ${selectedSector === sector ? styles.active : ''}`}
               onClick={() => handleSectorClick(sector)}
             >
               {sector}
-            </SectorButton>
+            </button>
           ))}
-        </SectorButtonsRow>
-      </SectorFilterContainer>
+        </div>
+      </div>
       
-      <FullWidthCard theme={theme}>
-        <SectionTitle theme={theme}>
+      <div className={`${styles.fullWidthCard} ${styles[theme]}`}>
+        <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
           {selectedSector === 'All' ? 'All Schools' : `${selectedSector} Sector Schools`}
           <span style={{ 
             fontSize: '0.9rem', 
@@ -884,22 +359,24 @@ const FDEDashboard = ({ onLogout }) => {
           }}>
             ({filteredSchools.length} schools)
           </span>
-        </SectionTitle>
-        <SchoolsList theme={theme}>
+        </h3>
+        <div className={`${styles.schoolsList} ${styles[theme]}`}>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
             {filteredSchools.map(school => {
               const avgLP = school.avg_lp_ratio || 0;
               const isActive = avgLP > 10;
               return (
-                <SchoolItem key={school.emis} theme={theme} inactive={!isActive}>
+                <li key={school.emis} className={`${styles.schoolItem} ${styles[theme]} ${!isActive ? styles.inactive : ''}`}>
                   {school.school_name} ({school.sector})
-                  <StatusTag active={isActive}>{isActive ? 'Active' : 'Inactive'}</StatusTag>
-                </SchoolItem>
+                  <span className={`${styles.statusTag} ${isActive ? styles.active : styles.inactive}`}>
+                    {isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </li>
               );
             })}
           </ul>
-        </SchoolsList>
-      </FullWidthCard>
+        </div>
+      </div>
 
       {/* Messaging Modal (if needed) */}
       <MessagingModal
@@ -917,7 +394,7 @@ const FDEDashboard = ({ onLogout }) => {
         theme={theme}
         onMessagesRead={loadUnreadMessageCount}
       />
-    </DashboardContainer>
+    </div>
   );
 };
 

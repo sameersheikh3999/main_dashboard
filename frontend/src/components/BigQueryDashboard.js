@@ -1,202 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts';
 import { apiService } from '../services/api';
-
-const DashboardContainer = styled.div`
-  padding: 20px;
-  background: #f5f5f5;
-  min-height: 100vh;
-`;
-
-const Header = styled.div`
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-`;
-
-const Title = styled.h1`
-  color: #333;
-  margin: 0 0 10px 0;
-`;
-
-const Subtitle = styled.p`
-  color: #666;
-  margin: 0;
-`;
-
-const FilterSection = styled.div`
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-`;
-
-const FilterRow = styled.div`
-  display: flex;
-  gap: 15px;
-  margin-bottom: 15px;
-  flex-wrap: wrap;
-`;
-
-const FilterGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  min-width: 150px;
-`;
-
-const Label = styled.label`
-  font-weight: 500;
-  margin-bottom: 5px;
-  color: #333;
-`;
-
-const Select = styled.select`
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 14px;
-`;
-
-const Input = styled.input`
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  font-size: 14px;
-`;
-
-const Button = styled.button`
-  padding: 10px 20px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  margin-top: 20px;
-
-  &:hover {
-    background: #0056b3;
-  }
-
-  &:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-  }
-`;
-
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
-`;
-
-const StatCard = styled.div`
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  text-align: center;
-`;
-
-const StatValue = styled.div`
-  font-size: 2rem;
-  font-weight: bold;
-  color: #007bff;
-  margin-bottom: 5px;
-`;
-
-const StatLabel = styled.div`
-  color: #666;
-  font-size: 14px;
-`;
-
-const ChartSection = styled.div`
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-`;
-
-const ChartTitle = styled.h3`
-  margin: 0 0 20px 0;
-  color: #333;
-`;
-
-const DataTable = styled.div`
-  background: white;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  overflow-x: auto;
-`;
-
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-`;
-
-const Th = styled.th`
-  background: #f8f9fa;
-  padding: 12px;
-  text-align: left;
-  border-bottom: 2px solid #dee2e6;
-  font-weight: 600;
-`;
-
-const Td = styled.td`
-  padding: 12px;
-  border-bottom: 1px solid #dee2e6;
-`;
-
-const LoadingSpinner = styled.div`
-  text-align: center;
-  padding: 40px;
-  color: #666;
-`;
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+import styles from './BigQueryDashboard.module.css';
 
 const BigQueryDashboard = () => {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filterOptions, setFilterOptions] = useState({});
   const [summaryStats, setSummaryStats] = useState({});
-  const [teacherData, setTeacherData] = useState([]);
-  const [aggregatedData, setAggregatedData] = useState([]);
-  
+  const [chartData, setChartData] = useState([]);
   const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
     sector: '',
-    school: '',
-    teacher: '',
-    grade: '',
-    subject: ''
+    school_type: '',
+    date_from: '',
+    date_to: ''
   });
-  
-  const [period, setPeriod] = useState('weekly');
 
   useEffect(() => {
     loadFilterOptions();
     loadSummaryStats();
+    loadData();
   }, []);
 
   const loadFilterOptions = async () => {
     try {
       const options = await apiService.getBigQueryFilterOptions();
-      // The API now returns an object with arrays, not an array of objects
       setFilterOptions(options);
     } catch (error) {
       console.error('Error loading filter options:', error);
+      setError('Failed to load filter options');
     }
   };
 
@@ -206,22 +42,19 @@ const BigQueryDashboard = () => {
       setSummaryStats(stats);
     } catch (error) {
       console.error('Error loading summary stats:', error);
+      setError('Failed to load summary statistics');
     }
   };
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [teacherResults, aggregatedResults] = await Promise.all([
-        apiService.getBigQueryTeacherData(filters),
-        apiService.getBigQueryAggregatedData(period, filters)
-      ]);
-      
-      setTeacherData(teacherResults);
-      setAggregatedData(aggregatedResults);
-      await loadSummaryStats();
+      const data = await apiService.getBigQueryData(filters);
+      setChartData(data);
     } catch (error) {
       console.error('Error loading data:', error);
+      setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
@@ -236,217 +69,168 @@ const BigQueryDashboard = () => {
   };
 
   const formatPercentage = (value) => {
-    return `${Math.round(value * 100) / 100}%`;
+    return `${(value * 100).toFixed(1)}%`;
   };
 
-  return (
-    <DashboardContainer>
-      <Header>
-        <Title>Teacher Performance Dashboard</Title>
-        <Subtitle>BigQuery Analytics - Lesson Plan Completion Rates</Subtitle>
-      </Header>
+  if (loading) {
+    return (
+      <div className={styles.dashboardContainer}>
+        <div className={styles.loading}>Loading BigQuery Dashboard...</div>
+      </div>
+    );
+  }
 
-      <FilterSection>
-        <h3>Filters</h3>
-        <FilterRow>
-          <FilterGroup>
-            <Label>Start Date</Label>
-            <Input
-              type="date"
-              value={filters.startDate}
-              onChange={(e) => handleFilterChange('startDate', e.target.value)}
-            />
-          </FilterGroup>
-          <FilterGroup>
-            <Label>End Date</Label>
-            <Input
-              type="date"
-              value={filters.endDate}
-              onChange={(e) => handleFilterChange('endDate', e.target.value)}
-            />
-          </FilterGroup>
-          <FilterGroup>
-            <Label>Period</Label>
-            <Select value={period} onChange={(e) => setPeriod(e.target.value)}>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-            </Select>
-          </FilterGroup>
-        </FilterRow>
-        
-        <FilterRow>
-          <FilterGroup>
-            <Label>Sector</Label>
-            <Select
-              value={filters.sector}
+  if (error) {
+    return (
+      <div className={styles.dashboardContainer}>
+        <div className={styles.error}>{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.dashboardContainer}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>BigQuery Data Dashboard</h1>
+        <p className={styles.subtitle}>
+          Comprehensive analytics and insights from BigQuery data
+        </p>
+      </div>
+
+      <div className={styles.filterSection}>
+        <div className={styles.filterRow}>
+          <div className={styles.filterGroup}>
+            <label className={styles.label}>Sector</label>
+            <select 
+              className={styles.select}
+              value={filters.sector} 
               onChange={(e) => handleFilterChange('sector', e.target.value)}
             >
               <option value="">All Sectors</option>
               {filterOptions.sectors?.map(sector => (
                 <option key={sector} value={sector}>{sector}</option>
               ))}
-            </Select>
-          </FilterGroup>
-          <FilterGroup>
-            <Label>School</Label>
-            <Select
-              value={filters.school}
-              onChange={(e) => handleFilterChange('school', e.target.value)}
+            </select>
+          </div>
+          <div className={styles.filterGroup}>
+            <label className={styles.label}>School Type</label>
+            <select 
+              className={styles.select}
+              value={filters.school_type} 
+              onChange={(e) => handleFilterChange('school_type', e.target.value)}
             >
-              <option value="">All Schools</option>
-              {filterOptions.schools?.map(school => (
-                <option key={school} value={school}>{school}</option>
+              <option value="">All Types</option>
+              {filterOptions.school_types?.map(type => (
+                <option key={type} value={type}>{type}</option>
               ))}
-            </Select>
-          </FilterGroup>
-          <FilterGroup>
-            <Label>Grade</Label>
-            <Select
-              value={filters.grade}
-              onChange={(e) => handleFilterChange('grade', e.target.value)}
-            >
-              <option value="">All Grades</option>
-              {filterOptions.grades?.map(grade => (
-                <option key={grade} value={grade}>{grade}</option>
-              ))}
-            </Select>
-          </FilterGroup>
-          <FilterGroup>
-            <Label>Subject</Label>
-            <Select
-              value={filters.subject}
-              onChange={(e) => handleFilterChange('subject', e.target.value)}
-            >
-              <option value="">All Subjects</option>
-              {filterOptions.subjects?.map(subject => (
-                <option key={subject} value={subject}>{subject}</option>
-              ))}
-            </Select>
-          </FilterGroup>
-        </FilterRow>
+            </select>
+          </div>
+          <div className={styles.filterGroup}>
+            <label className={styles.label}>Date From</label>
+            <input 
+              type="date" 
+              className={styles.input}
+              value={filters.date_from} 
+              onChange={(e) => handleFilterChange('date_from', e.target.value)}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <label className={styles.label}>Date To</label>
+            <input 
+              type="date" 
+              className={styles.input}
+              value={filters.date_to} 
+              onChange={(e) => handleFilterChange('date_to', e.target.value)}
+            />
+          </div>
+        </div>
+        <button className={styles.button} onClick={loadData}>
+          Apply Filters
+        </button>
+      </div>
 
-        <Button onClick={loadData} disabled={loading}>
-          {loading ? 'Loading...' : 'Load Data'}
-        </Button>
-      </FilterSection>
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{summaryStats.total_schools || 0}</div>
+          <div className={styles.statLabel}>Total Schools</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{summaryStats.total_teachers || 0}</div>
+          <div className={styles.statLabel}>Total Teachers</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{summaryStats.total_students || 0}</div>
+          <div className={styles.statLabel}>Total Students</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{summaryStats.avg_lp_ratio ? formatPercentage(summaryStats.avg_lp_ratio) : '0%'}</div>
+          <div className={styles.statLabel}>Average LP Ratio</div>
+        </div>
+      </div>
 
-      {summaryStats.total_teachers && (
-        <StatsGrid>
-          <StatCard>
-            <StatValue>{summaryStats.total_teachers}</StatValue>
-            <StatLabel>Total Teachers</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatValue>{summaryStats.total_schools}</StatValue>
-            <StatLabel>Total Schools</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatValue>{summaryStats.total_sectors}</StatValue>
-            <StatLabel>Total Sectors</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatValue>{formatPercentage(summaryStats.overall_avg_lp_ratio)}</StatValue>
-            <StatLabel>Average LP Ratio</StatLabel>
-          </StatCard>
-        </StatsGrid>
-      )}
+      <div className={styles.chartsGrid}>
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>LP Ratio Trend</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="lp_ratio" stroke="#8884d8" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
 
-      {loading ? (
-        <LoadingSpinner>Loading data...</LoadingSpinner>
-      ) : (
-        <>
-          {aggregatedData.length > 0 && (
-            <ChartSection>
-              <ChartTitle>LP Ratio Trends Over Time</ChartTitle>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={aggregatedData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="period" 
-                    tickFormatter={(value) => formatDate(value)}
-                  />
-                  <YAxis />
-                  <Tooltip 
-                    labelFormatter={(value) => formatDate(value)}
-                    formatter={(value) => [formatPercentage(value), 'LP Ratio']}
-                  />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="avg_lp_ratio" 
-                    stroke="#8884d8" 
-                    strokeWidth={2}
-                    name="Average LP Ratio"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartSection>
-          )}
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>School Distribution by Sector</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                dataKey="school_count"
+                nameKey="sector"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                fill="#8884d8"
+                label
+              />
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
 
-          {aggregatedData.length > 0 && (
-            <ChartSection>
-              <ChartTitle>Teacher Count by Period</ChartTitle>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={aggregatedData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="period" 
-                    tickFormatter={(value) => formatDate(value)}
-                  />
-                  <YAxis />
-                  <Tooltip 
-                    labelFormatter={(value) => formatDate(value)}
-                    formatter={(value) => [value, 'Teachers']}
-                  />
-                  <Legend />
-                  <Bar dataKey="teacher_count" fill="#82ca9d" name="Teacher Count" />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartSection>
-          )}
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>Teacher Performance by School</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData.slice(0, 10)}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="school_name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="teacher_count" fill="#82ca9d" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
 
-          {teacherData.length > 0 && (
-            <DataTable>
-              <ChartTitle>Teacher Data</ChartTitle>
-              <Table>
-                <thead>
-                  <tr>
-                    <Th>Teacher</Th>
-                    <Th>School</Th>
-                    <Th>Sector</Th>
-                    <Th>Grade</Th>
-                    <Th>Subject</Th>
-                    <Th>Week Start</Th>
-                    <Th>Week End</Th>
-                    <Th>LP Ratio</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teacherData.slice(0, 50).map((row, index) => (
-                    <tr key={index}>
-                      <Td>{row.Teacher}</Td>
-                      <Td>{row.School}</Td>
-                      <Td>{row.Sector}</Td>
-                      <Td>{row.Grade}</Td>
-                      <Td>{row.Subject}</Td>
-                      <Td>{formatDate(row.week_start)}</Td>
-                      <Td>{formatDate(row.week_end)}</Td>
-                      <Td>{formatPercentage(row.lp_ratio)}</Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-              {teacherData.length > 50 && (
-                <p style={{ marginTop: '10px', color: '#666' }}>
-                  Showing first 50 records of {teacherData.length} total records
-                </p>
-              )}
-            </DataTable>
-          )}
-        </>
-      )}
-    </DashboardContainer>
+        <div className={styles.chartCard}>
+          <h3 className={styles.chartTitle}>Student Enrollment Trend</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Area type="monotone" dataKey="student_count" stackId="1" stroke="#8884d8" fill="#8884d8" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
   );
 };
 

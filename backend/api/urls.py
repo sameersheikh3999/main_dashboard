@@ -41,4 +41,9 @@ urlpatterns = [
     path('messages/unread-count/', views.UnreadMessageCountView.as_view(), name='unread-message-count'),
     # AEOs by sector
     path('aeos/by-sector/', views.AEOsBySectorView.as_view(), name='aeos-by-sector'),
+    # AEO sector schools with WiFi and activity data
+    path('aeos/sector-schools/', views.AEOSectorSchoolsView.as_view(), name='aeo-sector-schools'),
+    # Admin dashboard endpoints
+    path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin-dashboard'),
+    path('admin/data/<str:data_type>/', views.AdminDetailedDataView.as_view(), name='admin-detailed-data'),
 ]

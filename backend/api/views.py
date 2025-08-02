@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db import models
+from django.utils import timezone
 from .models import UserProfile, Conversation, Message, TeacherData, AggregatedData, FilterOptions, SchoolData
 from .serializers import UserSerializer, ConversationSerializer, MessageSerializer, RegisterSerializer
 from .services import DataService
@@ -264,6 +265,10 @@ class MessageCreateView(CreateAPIView):
                 school_name=school_name,
                 message_text=message_text
             )
+            
+            # Update the conversation's last_message_at to the current timestamp
+            conversation.last_message_at = timezone.now()
+            conversation.save()
             serializer = self.get_serializer(message)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Conversation.DoesNotExist:
@@ -1222,3 +1227,460 @@ class AEOsBySectorView(APIView):
         except Exception as e:
             print(f"Error getting AEOs by sector: {e}")
             return Response({'error': f'Error getting AEOs by sector: {str(e)}'}, status=500)
+
+class AEOSectorSchoolsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get schools in AEO's sector with WiFi status and teacher activity"""
+        try:
+            # Get current user's sector
+            user_profile = request.user.userprofile
+            if user_profile.role != 'AEO':
+                return Response({'error': 'Access denied. Only AEOs can view sector schools data.'}, status=403)
+            
+            sector = user_profile.sector
+            if not sector:
+                return Response({'error': 'Sector not found in user profile'}, status=400)
+            
+            # Initialize BigQuery client
+            client = bigquery.Client()
+            
+            # Query to get schools in AEO's sector with WiFi and teacher activity
+            query = """
+            SELECT  
+                c.EMIS, 
+                c.Institute as school_name, 
+                c.Sector as sector,
+                COUNT(DISTINCT d.user_id) as teacher_count,
+                AVG(LEAST(IFNULL(a.lp_started, 0) / a.max_classes, 1) * 100) as avg_lp_ratio,
+                
+                -- WiFi and infrastructure data from teacher observations
+                COUNT(DISTINCT CASE 
+                    WHEN obs.supp_learn_envi_supp_learn_envi_score IS NOT NULL 
+                    THEN obs.user_id 
+                END) as teachers_with_observations,
+                
+                AVG(CAST(obs.supp_learn_envi_supp_learn_envi_score AS FLOAT64)) as avg_infrastructure_score,
+                
+                -- WiFi status based on infrastructure score
+                CASE 
+                    WHEN AVG(CAST(obs.supp_learn_envi_supp_learn_envi_score AS FLOAT64)) >= 4.0 THEN 'Available'
+                    WHEN AVG(CAST(obs.supp_learn_envi_supp_learn_envi_score AS FLOAT64)) >= 3.0 THEN 'Limited'
+                    ELSE 'Not Available'
+                END as wifi_status,
+                
+                -- Active teachers (those with LP ratio > 10%)
+                COUNT(DISTINCT CASE 
+                    WHEN LEAST(IFNULL(a.lp_started, 0) / a.max_classes, 1) * 100 > 10 
+                    THEN a.user_id 
+                END) as active_teachers,
+                
+                -- Inactive teachers (those with LP ratio <= 10%)
+                COUNT(DISTINCT CASE 
+                    WHEN LEAST(IFNULL(a.lp_started, 0) / a.max_classes, 1) * 100 <= 10 
+                    THEN a.user_id 
+                END) as inactive_teachers
+                
+            FROM `tbproddb.FDE_Schools` c
+            LEFT JOIN `tbproddb.user_school_profiles` d ON c.EMIS = d.emis_1
+            LEFT JOIN `tbproddb.weekly_time_table_NF` a ON d.user_id = a.user_id AND a.max_classes != 0
+            LEFT JOIN `tbproddb.TEACH_TOOL_OBSERVATION` obs ON d.user_id = obs.user_id 
+                AND obs.supp_learn_envi_supp_learn_envi_score IS NOT NULL 
+                AND obs.supp_learn_envi_supp_learn_envi_score != ''
+            WHERE c.Sector = @sector
+            GROUP BY c.EMIS, c.Institute, c.Sector
+            ORDER BY c.Institute
+            """
+            
+            # Set up query parameters
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("sector", "STRING", sector),
+                ]
+            )
+            
+            query_job = client.query(query, job_config=job_config)
+            results = query_job.result()
+            
+            # Convert results to list of dictionaries
+            data = []
+            for row in results:
+                total_teachers = int(row.teacher_count) if row.teacher_count else 0
+                active_teachers = int(row.active_teachers) if row.active_teachers else 0
+                inactive_teachers = int(row.inactive_teachers) if row.inactive_teachers else 0
+                
+                # Calculate activity percentage
+                activity_percentage = round((active_teachers / total_teachers * 100) if total_teachers > 0 else 0, 1)
+                
+                # Determine activity status
+                activity_status = 'Active' if activity_percentage > 10 else 'Inactive'
+                
+                data.append({
+                    'emis': row.EMIS,
+                    'school_name': row.school_name,
+                    'sector': row.sector,
+                    'teacher_count': total_teachers,
+                    'avg_lp_ratio': float(row.avg_lp_ratio) if row.avg_lp_ratio else 0,
+                    'wifi_status': row.wifi_status or 'Not Available',
+                    'wifi_available': row.wifi_status == 'Available',
+                    'avg_infrastructure_score': float(row.avg_infrastructure_score) if row.avg_infrastructure_score else 0,
+                    'active_teachers': active_teachers,
+                    'inactive_teachers': inactive_teachers,
+                    'activity_percentage': activity_percentage,
+                    'activity_status': activity_status,
+                    'teachers_with_observations': int(row.teachers_with_observations) if row.teachers_with_observations else 0
+                })
+            
+            return Response(data)
+            
+        except Exception as e:
+            print(f"Error fetching AEO sector schools data: {e}")
+            return Response({'error': str(e)}, status=500)
+
+class AdminDashboardView(APIView):
+    """Comprehensive admin dashboard with all data and no restrictions"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get comprehensive admin dashboard data"""
+        try:
+            # Check if user is admin/superuser
+            if not request.user.is_superuser:
+                return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+            
+            # Get query parameters for filtering
+            sector = request.GET.get('sector', '')
+            school = request.GET.get('school', '')
+            grade = request.GET.get('grade', '')
+            subject = request.GET.get('subject', '')
+            date_from = request.GET.get('date_from', '')
+            date_to = request.GET.get('date_to', '')
+            sort_by = request.GET.get('sort_by', 'school')
+            sort_order = request.GET.get('sort_order', 'asc')
+            
+            # Base querysets
+            teacher_data = TeacherData.objects.all()
+            aggregated_data = AggregatedData.objects.all()
+            school_data = SchoolData.objects.all()
+            conversations = Conversation.objects.all()
+            messages = Message.objects.all()
+            users = User.objects.all()
+            user_profiles = UserProfile.objects.all()
+            
+            # Apply filters
+            if sector:
+                teacher_data = teacher_data.filter(sector__icontains=sector)
+                aggregated_data = aggregated_data.filter(sector__icontains=sector)
+                school_data = school_data.filter(sector__icontains=sector)
+                user_profiles = user_profiles.filter(sector__icontains=sector)
+            
+            if school:
+                teacher_data = teacher_data.filter(school__icontains=school)
+                aggregated_data = aggregated_data.filter(school__icontains=school)
+                school_data = school_data.filter(school_name__icontains=school)
+                conversations = conversations.filter(school_name__icontains=school)
+                messages = messages.filter(school_name__icontains=school)
+            
+            if grade:
+                teacher_data = teacher_data.filter(grade__icontains=grade)
+            
+            if subject:
+                teacher_data = teacher_data.filter(subject__icontains=subject)
+            
+            if date_from:
+                teacher_data = teacher_data.filter(week_start__gte=date_from)
+                aggregated_data = aggregated_data.filter(period__gte=date_from)
+            
+            if date_to:
+                teacher_data = teacher_data.filter(week_end__lte=date_to)
+                aggregated_data = aggregated_data.filter(period__lte=date_to)
+            
+            # Apply sorting
+            if sort_by == 'school':
+                teacher_data = teacher_data.order_by('school' if sort_order == 'asc' else '-school')
+                aggregated_data = aggregated_data.order_by('school' if sort_order == 'asc' else '-school')
+                school_data = school_data.order_by('school_name' if sort_order == 'asc' else '-school_name')
+            elif sort_by == 'sector':
+                teacher_data = teacher_data.order_by('sector' if sort_order == 'asc' else '-sector')
+                aggregated_data = aggregated_data.order_by('sector' if sort_order == 'asc' else '-sector')
+                school_data = school_data.order_by('sector' if sort_order == 'asc' else '-sector')
+            elif sort_by == 'lp_ratio':
+                teacher_data = teacher_data.order_by('lp_ratio' if sort_order == 'asc' else '-lp_ratio')
+                aggregated_data = aggregated_data.order_by('avg_lp_ratio' if sort_order == 'asc' else '-avg_lp_ratio')
+                school_data = school_data.order_by('avg_lp_ratio' if sort_order == 'asc' else '-avg_lp_ratio')
+            elif sort_by == 'date':
+                teacher_data = teacher_data.order_by('week_start' if sort_order == 'asc' else '-week_start')
+                aggregated_data = aggregated_data.order_by('period' if sort_order == 'asc' else '-period')
+            
+            # Get filter options
+            filter_options = {
+                'sectors': list(FilterOptions.objects.filter(option_type='sectors').values_list('option_value', flat=True)),
+                'schools': list(FilterOptions.objects.filter(option_type='schools').values_list('option_value', flat=True)),
+                'grades': list(FilterOptions.objects.filter(option_type='grades').values_list('option_value', flat=True)),
+                'subjects': list(FilterOptions.objects.filter(option_type='subjects').values_list('option_value', flat=True)),
+            }
+            
+            # Calculate comprehensive statistics
+            stats = {
+                'total_teachers': teacher_data.count(),
+                'total_schools': school_data.count(),
+                'total_conversations': conversations.count(),
+                'total_messages': messages.count(),
+                'total_users': users.count(),
+                'total_aeos': user_profiles.filter(role='AEO').count(),
+                'total_principals': user_profiles.filter(role='Principal').count(),
+                'total_fdes': user_profiles.filter(role='FDE').count(),
+                'avg_lp_ratio': teacher_data.aggregate(avg=models.Avg('lp_ratio'))['avg'] or 0,
+                'total_sectors': teacher_data.values('sector').distinct().count(),
+            }
+            
+            # Get recent activity
+            recent_messages = messages.order_by('-timestamp')[:50]
+            recent_conversations = conversations.order_by('-last_message_at')[:20]
+            
+            # Get sector-wise breakdown
+            sector_stats = []
+            for sector_name in teacher_data.values_list('sector', flat=True).distinct():
+                sector_teachers = teacher_data.filter(sector=sector_name)
+                sector_schools = school_data.filter(sector=sector_name)
+                sector_stats.append({
+                    'sector': sector_name,
+                    'teacher_count': sector_teachers.count(),
+                    'school_count': sector_schools.count(),
+                    'avg_lp_ratio': sector_teachers.aggregate(avg=models.Avg('lp_ratio'))['avg'] or 0,
+                })
+            
+            # Get school-wise breakdown
+            school_stats = []
+            for school_name in teacher_data.values_list('school', flat=True).distinct()[:50]:  # Limit to top 50
+                school_teachers = teacher_data.filter(school=school_name)
+                school_stats.append({
+                    'school': school_name,
+                    'teacher_count': school_teachers.count(),
+                    'avg_lp_ratio': school_teachers.aggregate(avg=models.Avg('lp_ratio'))['avg'] or 0,
+                    'sector': school_teachers.first().sector if school_teachers.exists() else '',
+                })
+            
+            # Get user activity
+            user_activity = []
+            for user in users[:50]:  # Limit to top 50 users
+                sent_messages = messages.filter(sender=user).count()
+                received_messages = messages.filter(receiver=user).count()
+                user_activity.append({
+                    'username': user.username,
+                    'role': user.userprofile.role if hasattr(user, 'userprofile') else 'Unknown',
+                    'sector': user.userprofile.sector if hasattr(user, 'userprofile') else '',
+                    'sent_messages': sent_messages,
+                    'received_messages': received_messages,
+                    'total_messages': sent_messages + received_messages,
+                })
+            
+            return Response({
+                'stats': stats,
+                'filter_options': filter_options,
+                'sector_stats': sector_stats,
+                'school_stats': school_stats,
+                'user_activity': user_activity,
+                'recent_messages': [
+                    {
+                        'id': msg.id,
+                        'sender': msg.sender.username,
+                        'receiver': msg.receiver.username,
+                        'school_name': msg.school_name,
+                        'message_text': msg.message_text[:100] + '...' if len(msg.message_text) > 100 else msg.message_text,
+                        'timestamp': msg.timestamp,
+                        'is_read': msg.is_read,
+                    } for msg in recent_messages
+                ],
+                'recent_conversations': [
+                    {
+                        'id': conv.id,
+                        'school_name': conv.school_name,
+                        'aeo': conv.aeo.username,
+                        'principal': conv.principal.username if conv.principal else None,
+                        'created_at': conv.created_at,
+                        'last_message_at': conv.last_message_at,
+                    } for conv in recent_conversations
+                ],
+                'applied_filters': {
+                    'sector': sector,
+                    'school': school,
+                    'grade': grade,
+                    'subject': subject,
+                    'date_from': date_from,
+                    'date_to': date_to,
+                    'sort_by': sort_by,
+                    'sort_order': sort_order,
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AdminDetailedDataView(APIView):
+    """Get detailed data for admin dashboard with pagination"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, data_type):
+        """Get detailed data by type (teachers, schools, conversations, messages, users)"""
+        try:
+            # Check if user is admin/superuser
+            if not request.user.is_superuser:
+                return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+            
+            # Get query parameters
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 50))
+            sector = request.GET.get('sector', '')
+            school = request.GET.get('school', '')
+            sort_by = request.GET.get('sort_by', 'id')
+            sort_order = request.GET.get('sort_order', 'desc')
+            
+            # Calculate offset
+            offset = (page - 1) * page_size
+            
+            if data_type == 'teachers':
+                queryset = TeacherData.objects.all()
+                if sector:
+                    queryset = queryset.filter(sector__icontains=sector)
+                if school:
+                    queryset = queryset.filter(school__icontains=school)
+                
+                # Apply sorting
+                if sort_by == 'school':
+                    queryset = queryset.order_by('school' if sort_order == 'asc' else '-school')
+                elif sort_by == 'sector':
+                    queryset = queryset.order_by('sector' if sort_order == 'asc' else '-sector')
+                elif sort_by == 'lp_ratio':
+                    queryset = queryset.order_by('lp_ratio' if sort_order == 'asc' else '-lp_ratio')
+                elif sort_by == 'date':
+                    queryset = queryset.order_by('week_start' if sort_order == 'asc' else '-week_start')
+                else:
+                    queryset = queryset.order_by('id' if sort_order == 'asc' else '-id')
+                
+                total_count = queryset.count()
+                data = list(queryset[offset:offset + page_size].values())
+                
+            elif data_type == 'schools':
+                queryset = SchoolData.objects.all()
+                if sector:
+                    queryset = queryset.filter(sector__icontains=sector)
+                if school:
+                    queryset = queryset.filter(school_name__icontains=school)
+                
+                # Apply sorting
+                if sort_by == 'school':
+                    queryset = queryset.order_by('school_name' if sort_order == 'asc' else '-school_name')
+                elif sort_by == 'sector':
+                    queryset = queryset.order_by('sector' if sort_order == 'asc' else '-sector')
+                elif sort_by == 'lp_ratio':
+                    queryset = queryset.order_by('avg_lp_ratio' if sort_order == 'asc' else '-avg_lp_ratio')
+                else:
+                    queryset = queryset.order_by('id' if sort_order == 'asc' else '-id')
+                
+                total_count = queryset.count()
+                data = list(queryset[offset:offset + page_size].values())
+                
+            elif data_type == 'conversations':
+                queryset = Conversation.objects.select_related('aeo', 'principal').all()
+                if school:
+                    queryset = queryset.filter(school_name__icontains=school)
+                
+                # Apply sorting
+                if sort_by == 'school':
+                    queryset = queryset.order_by('school_name' if sort_order == 'asc' else '-school_name')
+                elif sort_by == 'date':
+                    queryset = queryset.order_by('created_at' if sort_order == 'asc' else '-created_at')
+                else:
+                    queryset = queryset.order_by('id' if sort_order == 'asc' else '-id')
+                
+                total_count = queryset.count()
+                data = []
+                for conv in queryset[offset:offset + page_size]:
+                    data.append({
+                        'id': conv.id,
+                        'school_name': conv.school_name,
+                        'aeo': conv.aeo.username,
+                        'principal': conv.principal.username if conv.principal else None,
+                        'created_at': conv.created_at,
+                        'last_message_at': conv.last_message_at,
+                    })
+                
+            elif data_type == 'messages':
+                queryset = Message.objects.select_related('sender', 'receiver').all()
+                if school:
+                    queryset = queryset.filter(school_name__icontains=school)
+                
+                # Apply sorting
+                if sort_by == 'school':
+                    queryset = queryset.order_by('school_name' if sort_order == 'asc' else '-school_name')
+                elif sort_by == 'date':
+                    queryset = queryset.order_by('timestamp' if sort_order == 'asc' else '-timestamp')
+                else:
+                    queryset = queryset.order_by('id' if sort_order == 'asc' else '-id')
+                
+                total_count = queryset.count()
+                data = []
+                for msg in queryset[offset:offset + page_size]:
+                    data.append({
+                        'id': msg.id,
+                        'sender': msg.sender.username,
+                        'receiver': msg.receiver.username,
+                        'school_name': msg.school_name,
+                        'message_text': msg.message_text,
+                        'timestamp': msg.timestamp,
+                        'is_read': msg.is_read,
+                    })
+                
+            elif data_type == 'users':
+                queryset = User.objects.select_related('userprofile').all()
+                if sector:
+                    queryset = queryset.filter(userprofile__sector__icontains=sector)
+                
+                # Apply sorting
+                if sort_by == 'username':
+                    queryset = queryset.order_by('username' if sort_order == 'asc' else '-username')
+                elif sort_by == 'date_joined':
+                    queryset = queryset.order_by('date_joined' if sort_order == 'asc' else '-date_joined')
+                else:
+                    queryset = queryset.order_by('id' if sort_order == 'asc' else '-id')
+                
+                total_count = queryset.count()
+                data = []
+                for user in queryset[offset:offset + page_size]:
+                    data.append({
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email,
+                        'role': user.userprofile.role if hasattr(user, 'userprofile') else 'Unknown',
+                        'sector': user.userprofile.sector if hasattr(user, 'userprofile') else '',
+                        'school_name': user.userprofile.school_name if hasattr(user, 'userprofile') else '',
+                        'date_joined': user.date_joined,
+                        'last_login': user.last_login,
+                        'is_active': user.is_active,
+                        'is_staff': user.is_staff,
+                        'is_superuser': user.is_superuser,
+                    })
+                
+            else:
+                return Response({'error': 'Invalid data type'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            return Response({
+                'data': data,
+                'pagination': {
+                    'page': page,
+                    'page_size': page_size,
+                    'total_count': total_count,
+                    'total_pages': (total_count + page_size - 1) // page_size,
+                },
+                'filters': {
+                    'sector': sector,
+                    'school': school,
+                    'sort_by': sort_by,
+                    'sort_order': sort_order,
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

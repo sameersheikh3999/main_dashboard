@@ -11,7 +11,7 @@ class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(source='userprofile', read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'username', 'profile']
+        fields = ['id', 'username', 'profile', 'is_superuser', 'is_staff']
 
 class ConversationSerializer(serializers.ModelSerializer):
     aeo = UserSerializer()

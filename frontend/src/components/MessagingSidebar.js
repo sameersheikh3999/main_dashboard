@@ -15,6 +15,8 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
   const [availableUsers, setAvailableUsers] = useState([]);
   const [usersLoaded, setUsersLoaded] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [recentlyUpdatedConversations, setRecentlyUpdatedConversations] = useState(new Set());
+  const [previousUnreadCounts, setPreviousUnreadCounts] = useState({});
   const user = getCurrentUser();
   const messageListRef = useRef(null);
   
@@ -35,6 +37,19 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
     if (isOpen && user && authenticated && !conversationsLoaded && !loading) {
       loadConversations();
     }
+  }, [isOpen, user?.id, authenticated, conversationsLoaded, loading]);
+
+  // Poll for new conversations every 5 seconds when sidebar is open
+  useEffect(() => {
+    if (!isOpen || !user || !authenticated) return;
+
+    const pollInterval = setInterval(() => {
+      if (conversationsLoaded && !loading) {
+        loadConversations();
+      }
+    }, 5000); // Poll every 5 seconds for more responsive updates
+
+    return () => clearInterval(pollInterval);
   }, [isOpen, user?.id, authenticated, conversationsLoaded, loading]);
 
   useEffect(() => {
@@ -91,7 +106,69 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
       
       // Ensure conversationsData is an array
       const validConversations = Array.isArray(conversationsData) ? conversationsData : [];
-      setConversations(validConversations);
+      
+      // Sort conversations: unread messages first, then by latest message timestamp
+      const sortedConversations = validConversations.sort((a, b) => {
+        // First, sort by unread count (higher unread count first)
+        if (a.unread_count !== b.unread_count) {
+          return b.unread_count - a.unread_count;
+        }
+        
+        // Then, sort by latest message timestamp (most recent first)
+        const aTimestamp = a.latest_message?.timestamp || a.created_at;
+        const bTimestamp = b.latest_message?.timestamp || b.created_at;
+        return new Date(bTimestamp) - new Date(aTimestamp);
+      });
+      
+      // Check for conversations with new unread messages and highlight them
+      const newUnreadConversations = new Set();
+      const conversationsWithNewMessages = new Set();
+      
+      sortedConversations.forEach(conv => {
+        const previousCount = previousUnreadCounts[conv.conversation_id] || 0;
+        const currentCount = conv.unread_count;
+        
+        // If unread count increased, this conversation has new messages
+        if (currentCount > previousCount) {
+          conversationsWithNewMessages.add(conv.conversation_id);
+        }
+        
+        if (currentCount > 0) {
+          newUnreadConversations.add(conv.conversation_id);
+        }
+      });
+      
+      // Update previous unread counts
+      const newPreviousCounts = {};
+      sortedConversations.forEach(conv => {
+        newPreviousCounts[conv.conversation_id] = conv.unread_count;
+      });
+      setPreviousUnreadCounts(newPreviousCounts);
+      
+      // Add highlight for conversations with new unread messages
+      if (conversationsWithNewMessages.size > 0) {
+        setRecentlyUpdatedConversations(prev => new Set([...prev, ...conversationsWithNewMessages]));
+        
+        // Show notification for new messages
+        conversationsWithNewMessages.forEach(convId => {
+          const conversation = sortedConversations.find(c => c.conversation_id === convId);
+          if (conversation) {
+            // You can add a notification sound here if desired
+            console.log(`New message from ${conversation.other_user.username}`);
+          }
+        });
+        
+        // Remove highlights after 3 seconds
+        setTimeout(() => {
+          setRecentlyUpdatedConversations(prev => {
+            const newSet = new Set(prev);
+            conversationsWithNewMessages.forEach(id => newSet.delete(id));
+            return newSet;
+          });
+        }, 3000);
+      }
+      
+      setConversations(sortedConversations);
       setConversationsLoaded(true);
     } catch (error) {
       console.error('Error loading conversations:', error);
@@ -221,16 +298,65 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
 
     try {
       setSending(true);
+      const messageText = newMessage.trim();
+      
       console.log('Sending message:', {
         school_name: selectedConversation.school_name,
-        message: newMessage.trim(),
+        message: messageText,
         receiver_id: selectedConversation.other_user.id,
         conversation_id: selectedConversation.conversation_id
       });
       
+      // Immediately update the conversation list to move this conversation to the top
+      setConversations(prevConversations => {
+        const updatedConversations = prevConversations.map(conv => {
+          if (conv.conversation_id === selectedConversation.conversation_id) {
+            return {
+              ...conv,
+              latest_message: {
+                text: messageText,
+                timestamp: new Date().toISOString(),
+                sender_id: user.id,
+                is_own: true,
+              },
+              last_message_at: new Date().toISOString(),
+            };
+          }
+          return conv;
+        });
+        
+        // Sort conversations: unread messages first, then by latest message timestamp
+        return updatedConversations.sort((a, b) => {
+          // First, sort by unread count (higher unread count first)
+          if (a.unread_count !== b.unread_count) {
+            return b.unread_count - a.unread_count;
+          }
+          
+          // Then, sort by latest message timestamp (most recent first)
+          const aTimestamp = a.latest_message?.timestamp || a.created_at;
+          const bTimestamp = b.latest_message?.timestamp || b.created_at;
+          return new Date(bTimestamp) - new Date(aTimestamp);
+        });
+      });
+      
+      // Add this conversation to recently updated set for visual feedback
+      setRecentlyUpdatedConversations(prev => new Set([...prev, selectedConversation.conversation_id]));
+      
+      // Remove the highlight after 2 seconds
+      setTimeout(() => {
+        setRecentlyUpdatedConversations(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(selectedConversation.conversation_id);
+          return newSet;
+        });
+      }, 2000);
+      
+      // Clear the input immediately for better UX
+      setNewMessage('');
+      
       const result = await apiService.sendMessage(
         selectedConversation.school_name,
-        newMessage.trim(),
+        messageText,
         selectedConversation.other_user.id,
         selectedConversation.conversation_id
       );
@@ -249,7 +375,6 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
       console.log('Refreshing conversations...');
       await loadConversations();
 
-      setNewMessage('');
       console.log('Message handling completed');
       
       // Scroll to bottom after sending message
@@ -266,19 +391,60 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
 
   const handleStartConversation = async (userItem) => {
     try {
+      const initialMessage = 'Hello! I would like to start a conversation.';
+      
+      // Immediately add the new conversation to the list for instant feedback
+      const newConversation = {
+        conversation_id: `temp-${Date.now()}`, // Temporary ID
+        school_name: userItem.school_name,
+        other_user: {
+          id: userItem.id,
+          username: userItem.name,
+          role: userItem.role,
+          school_name: userItem.school_name,
+          emis: userItem.emis,
+        },
+        latest_message: {
+          text: initialMessage,
+          timestamp: new Date().toISOString(),
+          sender_id: user.id,
+          is_own: true,
+        },
+        unread_count: 0,
+        created_at: new Date().toISOString(),
+        last_message_at: new Date().toISOString(),
+      };
+      
+      setConversations(prevConversations => {
+        const updatedConversations = [newConversation, ...prevConversations];
+        return updatedConversations;
+      });
+      
+      // Add to recently updated set for visual feedback
+      setRecentlyUpdatedConversations(prev => new Set([...prev, newConversation.conversation_id]));
+      
+      // Switch to conversations tab immediately
+      setActiveTab('conversations');
+      
       // Send initial message to create conversation
       await apiService.sendMessage(
         userItem.school_name,
-        'Hello! I would like to start a conversation.',
+        initialMessage,
         userItem.id
       );
 
-      // Reload conversations to show the new one
+      // Reload conversations to get the real conversation data
       setConversationsLoaded(false);
       await loadConversations();
       
-      // Switch to conversations tab
-      setActiveTab('conversations');
+      // Remove the temporary highlight
+      setTimeout(() => {
+        setRecentlyUpdatedConversations(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(newConversation.conversation_id);
+          return newSet;
+        });
+      }, 2000);
     } catch (error) {
       console.error('Error starting conversation:', error);
       alert('Failed to start conversation. Please try again.');
@@ -531,7 +697,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
                     return (
                       <div
                         key={conversation.conversation_id}
-                        className={`${styles.conversationItem} ${styles[theme]} ${styles.hoverLift}`}
+                        className={`${styles.conversationItem} ${styles[theme]} ${styles.hoverLift} ${conversation.unread_count > 0 ? styles.newMessage : ''} ${recentlyUpdatedConversations.has(conversation.conversation_id) ? styles.recentlyUpdated : ''}`}
                         onClick={() => handleConversationClick(conversation)}
                       >
                         <div className={styles.conversationHeader}>

@@ -9,6 +9,7 @@ import Login from './components/Login';
 import PrincipalDashboard from './components/PrincipalDashboard';
 import FDEDashboard from './components/FDEDashboard';
 import AEODashboard from './components/AEODashboard';
+import AdminDashboard from './components/AdminDashboard';
 import Register from './components/Register';
 import { isAuthenticated, getCurrentUser, logout, apiService } from './services/api';
 
@@ -677,6 +678,7 @@ function App() {
 
   // Handler for successful login
   const handleLogin = (userData) => {
+    console.log('Login successful, user data:', userData);
     setUser(userData);
     setAuthenticated(true);
   };
@@ -740,18 +742,33 @@ function App() {
 
   // Show Principal Dashboard if user is a Principal
   if (user && user.profile?.role === 'Principal') {
+    console.log('Principal user detected, showing PrincipalDashboard');
     return <PrincipalDashboard onLogout={handleLogout} />;
   }
 
   // Show FDE Dashboard if user is FDE
   if (user && user.profile?.role === 'FDE') {
+    console.log('FDE user detected, showing FDEDashboard');
     return <FDEDashboard onLogout={handleLogout} />;
   }
 
   // Show AEO Dashboard if user is AEO
   if (user && user.profile?.role === 'AEO') {
+    console.log('AEO user detected, showing AEODashboard');
     return <AEODashboard onLogout={handleLogout} />;
   }
+
+  // Show Admin Dashboard if user is admin/superuser
+  if (user && (user.is_superuser || user.is_staff)) {
+    console.log('Admin user detected, showing AdminDashboard');
+    return <AdminDashboard onLogout={handleLogout} />;
+  }
+
+  // Fallback - show default dashboard for users without specific roles
+  console.log('No specific role detected, user data:', user);
+  console.log('User profile:', user?.profile);
+  console.log('User is_superuser:', user?.is_superuser);
+  console.log('User is_staff:', user?.is_staff);
 
   return (
     <>
