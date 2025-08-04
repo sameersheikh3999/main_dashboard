@@ -237,6 +237,17 @@ export const apiService = {
     return retryRequest(() => makeRequest(`${API_BASE_URL}/bigquery/all-schools/`));
   },
 
+  getSchoolsWithInfrastructure: async (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
+
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/schools-with-infrastructure/?${params}`)
+    );
+  },
+
   getSchoolTeachersData: async () => {
     return retryRequest(() => makeRequest(`${API_BASE_URL}/school-teachers/`));
   },
@@ -274,6 +285,32 @@ export const apiService = {
       if (value) params.append(key, value);
     });
     return retryRequest(() => makeRequest(`${API_BASE_URL}/admin/data/${dataType}/?${params}`));
+  },
+
+  getLessonPlanUsageDistribution: async () => {
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/lesson-plan-usage-distribution/`));
+  },
+
+  // LP Data endpoints
+  getSchoolLPData: async () => {
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/lp-data/schools/`));
+  },
+
+  getSectorLPData: async () => {
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/lp-data/sectors/`));
+  },
+
+  getTeacherLPData: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.sector) params.append('sector', filters.sector);
+    if (filters.emis) params.append('emis', filters.emis);
+    
+    const url = `${API_BASE_URL}/lp-data/teachers/${params.toString() ? '?' + params.toString() : ''}`;
+    return retryRequest(() => makeRequest(url));
+  },
+
+  getLPDataSummary: async () => {
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/lp-data/summary/`));
   },
 };
 

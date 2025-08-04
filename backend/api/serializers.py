@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import UserProfile, Conversation, Message
+from .models import UserProfile, Conversation, Message, SchoolData, SectorData, TeacherData
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -59,3 +59,18 @@ class RegisterSerializer(serializers.Serializer):
             school_name=validated_data.get('school_name', '')
         )
         return user
+
+class SchoolDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolData
+        fields = ['school_name', 'sector', 'emis', 'teacher_count', 'avg_lp_ratio']
+
+class SectorDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SectorData
+        fields = ['sector', 'teacher_count', 'avg_lp_ratio', 'school_count']
+
+class TeacherDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeacherData
+        fields = ['user_id', 'teacher', 'sector', 'emis', 'school', 'lp_ratio']

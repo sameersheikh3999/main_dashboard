@@ -387,7 +387,7 @@ const AdminDashboard = ({ onLogout }) => {
               </button>
             )}
           </h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={350}>
             <PieChart>
               <Pie
                 data={selectedSector ? 
@@ -398,14 +398,14 @@ const AdminDashboard = ({ onLogout }) => {
                 cy="50%"
                 labelLine={false}
                 label={({ sector, teacher_count, school, avg_lp_ratio, percent }) => {
-                  if (percent > 5) {
+                  if (percent > 0.08) {
                     return selectedSector ? 
                       `${school}\n${avg_lp_ratio?.toFixed(1)}%` :
                       `${sector}\n${teacher_count}`;
                   }
                   return '';
                 }}
-                outerRadius={80}
+                outerRadius={120}
                 innerRadius={40}
                 fill="#8884d8"
                 dataKey={selectedSector ? "avg_lp_ratio" : "teacher_count"}

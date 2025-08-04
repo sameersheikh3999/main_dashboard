@@ -78,6 +78,8 @@ class SchoolData(models.Model):
     emis = models.CharField(max_length=50)
     teacher_count = models.IntegerField()
     avg_lp_ratio = models.FloatField()
+    internet_availability = models.CharField(max_length=10, default='No')
+    student_teacher_ratio = models.CharField(max_length=20, default='1:0')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -122,3 +124,19 @@ class UserSchoolProfile(models.Model):
             models.Index(fields=['school']),
             models.Index(fields=['sector']),
         ]
+
+class SectorData(models.Model):
+    sector = models.CharField(max_length=100, unique=True)
+    teacher_count = models.IntegerField()
+    avg_lp_ratio = models.FloatField()
+    school_count = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['sector']),
+        ]
+
+    def __str__(self):
+        return f"{self.sector} - {self.avg_lp_ratio:.2f}%"

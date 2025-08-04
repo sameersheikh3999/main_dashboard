@@ -96,19 +96,19 @@ class Command(BaseCommand):
             # Clear existing data
             TeacherData.objects.all().delete()
 
-            # Query to get teacher data
+            # Query to get teacher data with individual LP ratios
             query = """
             SELECT  
-                a.user_id, 
-                d.user_name as Teacher, 
-                e.Sector, 
-                e.EMIS, 
-                e.Institute as School, 
+                a.user_id,
+                d.user_name as Teacher,
+                e.Sector,
+                e.EMIS,
+                e.Institute as School,
                 AVG(LEAST(IFNULL(lp_started, 0) / max_classes, 1) * 100) AS lp_ratio
-            FROM `tbproddb.weekly_time_table_NF` a 
-            INNER JOIN `tbproddb.user_school_profiles` d ON a.user_id=d.user_id 
+            FROM `tbproddb.weekly_time_table_NF` a
+            INNER JOIN `tbproddb.user_school_profiles` d ON a.user_id=d.user_id
             INNER JOIN `tbproddb.FDE_Schools` e ON d.emis_1=e.EMIS
-            WHERE max_classes != 0 
+            WHERE max_classes != 0
             GROUP BY user_id, d.user_name, e.Sector, e.EMIS, e.Institute
             ORDER BY e.Institute, d.user_name
             """

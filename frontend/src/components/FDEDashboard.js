@@ -43,6 +43,8 @@ const FDEDashboard = ({ onLogout }) => {
   const [selectedSector, setSelectedSector] = useState('All');
   const [filteredSchools, setFilteredSchools] = useState([]);
   const [theme, setTheme] = useState('light');
+  const [sortFilter, setSortFilter] = useState('performance-low-high'); // Default: low to high performing
+  const [emisFilter, setEmisFilter] = useState(''); // EMIS number filter
   const [messagingModal, setMessagingModal] = useState({
     isOpen: false,
     aeoId: null,
@@ -102,25 +104,63 @@ const FDEDashboard = ({ onLogout }) => {
   };
 
   useEffect(() => {
-    // Filter schools based on selected sector
-    if (selectedSector === 'All') {
-      setFilteredSchools(schools);
-    } else {
-      setFilteredSchools(schools.filter(school => school.sector === selectedSector));
+    // Filter schools based on selected sector and EMIS filter
+    let filtered = schools;
+    
+    // Apply sector filter
+    if (selectedSector !== 'All') {
+      filtered = filtered.filter(school => school.sector === selectedSector);
     }
-  }, [selectedSector, schools]);
+    
+    // Apply EMIS filter
+    if (emisFilter.trim()) {
+      filtered = filtered.filter(school => 
+        school.emis && school.emis.toString().includes(emisFilter.trim())
+      );
+    }
+    
+    // Apply sorting based on sortFilter
+    const sortedSchools = [...filtered].sort((a, b) => {
+      switch (sortFilter) {
+        case 'performance-low-high':
+          return (a.avg_lp_ratio || 0) - (b.avg_lp_ratio || 0);
+        case 'performance-high-low':
+          return (b.avg_lp_ratio || 0) - (a.avg_lp_ratio || 0);
+        case 'lp-low-high':
+          return (a.avg_lp_ratio || 0) - (b.avg_lp_ratio || 0);
+        case 'lp-high-low':
+          return (b.avg_lp_ratio || 0) - (a.avg_lp_ratio || 0);
+        case 'teachers-low-high':
+          return (a.teacher_count || 0) - (b.teacher_count || 0);
+        case 'teachers-high-low':
+          return (b.teacher_count || 0) - (a.teacher_count || 0);
+        case 'emis-asc':
+          return (a.emis || 0) - (b.emis || 0);
+        case 'emis-desc':
+          return (b.emis || 0) - (a.emis || 0);
+        case 'name-a-z':
+          return (a.school_name || '').localeCompare(b.school_name || '');
+        case 'name-z-a':
+          return (b.school_name || '').localeCompare(a.school_name || '');
+        default:
+          return 0;
+      }
+    });
+    
+    setFilteredSchools(sortedSchools);
+  }, [selectedSector, schools, sortFilter, emisFilter]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      // Fetch real summary stats and all schools/sectors
-      const [summary, allSchools, filterOptions] = await Promise.all([
-          apiService.getBigQuerySummaryStats({}),
-        apiService.getBigQueryAllSchools(),
+      // Fetch real summary stats, schools with infrastructure data, and filter options
+      const [summaryStats, sectorSchools, filterOptions] = await Promise.all([
+        apiService.getBigQuerySummaryStats(),
+        apiService.getSchoolsWithInfrastructure(),
         apiService.getBigQueryFilterOptions()
       ]);
-      setSummaryStats(summary);
-      setSchools(allSchools);
+      setSummaryStats(summaryStats);
+      setSchools(sectorSchools);
       setSectors(filterOptions.sectors || []);
     } catch (error) {
       console.error('Error loading FDE data:', error);
@@ -149,15 +189,74 @@ const FDEDashboard = ({ onLogout }) => {
     loadUnreadMessageCount();
   };
 
-  // Prepare sector distribution for PieChart
-  const sectorCounts = sectors.map(sector => ({
-    name: sector,
-    value: schools.filter(s => s.sector === sector).length
-  }));
+  // Prepare sector distribution for PieChart - use lesson plan usage distribution
+  const [lessonPlanDistribution, setLessonPlanDistribution] = useState([]);
+  const [sectorLPData, setSectorLPData] = useState([]);
+  
+  // Load lesson plan usage distribution
+  useEffect(() => {
+    const loadLessonPlanDistribution = async () => {
+      try {
+        const response = await apiService.getLessonPlanUsageDistribution();
+        setLessonPlanDistribution(response.distribution || []);
+      } catch (error) {
+        console.error('Error loading lesson plan distribution:', error);
+        // Fallback to school count distribution
+        const fallbackData = sectorList.map(sector => ({
+          name: sector,
+          value: schools.filter(s => s.sector === sector).length
+        })).filter(item => item.value > 0);
+        setLessonPlanDistribution(fallbackData);
+      }
+    };
+    
+    if (schools.length > 0) {
+      loadLessonPlanDistribution();
+    }
+  }, [schools]);
+
+  // Load sector LP data
+  useEffect(() => {
+    const loadSectorLPData = async () => {
+      try {
+        const response = await apiService.getSectorLPData();
+        setSectorLPData(response || []);
+      } catch (error) {
+        console.error('Error loading sector LP data:', error);
+        setSectorLPData([]);
+      }
+    };
+    
+    loadSectorLPData();
+  }, []);
+  
+  // Use sector performance data for pie chart, fallback to lesson plan distribution
+  const sectorCounts = sectorLPData.length > 0 ? 
+    sectorLPData.map(sector => ({
+      name: sector.sector,
+      value: sector.avg_lp_ratio
+    })).sort((a, b) => b.value - a.value) : // Sort high to low for pie chart
+    lessonPlanDistribution.length > 0 ? 
+      lessonPlanDistribution.map(item => ({
+        name: item.sector,
+        value: item.percentage
+      })) : 
+      sectorList.map(sector => ({
+        name: sector,
+        value: schools.filter(s => s.sector === sector).length
+      })).filter(item => item.value > 0);
+  
   const regionColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
-  // Calculate sector performance (mock data for now - you can replace with real metrics)
-  const sectorPerformance = sectorList.map(sector => {
+  // Calculate sector performance using the new sector LP data
+  const sectorPerformance = sectorLPData.length > 0 ? 
+    sectorLPData.map(sector => ({
+      name: sector.sector,
+      schoolCount: sector.school_count,
+      avgLPRatio: sector.avg_lp_ratio,
+      performanceScore: sector.avg_lp_ratio
+    })).sort((a, b) => a.performanceScore - b.performanceScore) : // Sort low to high
+    sectorList.map(sector => {
     const sectorSchools = schools.filter(s => s.sector === sector);
     const avgLPRatio = sectorSchools.length > 0 ? 
       sectorSchools.reduce((sum, school) => sum + (school.avg_lp_ratio || 0), 0) / sectorSchools.length : 0;
@@ -166,15 +265,30 @@ const FDEDashboard = ({ onLogout }) => {
       name: sector,
       schoolCount: sectorSchools.length,
       avgLPRatio: avgLPRatio,
-      performanceScore: Math.round(avgLPRatio * 100) / 100
+        performanceScore: avgLPRatio
     };
-  }).sort((a, b) => a.performanceScore - b.performanceScore); // Sort low to high
+    }).filter(sector => sector.schoolCount > 0)
+      .sort((a, b) => a.performanceScore - b.performanceScore); // Sort low to high
 
   const getPerformanceColor = (rank, total) => {
     const percentage = (rank / total) * 100;
     if (percentage <= 33) return '#ef4444'; // Red for low performing
     if (percentage <= 66) return '#f59e0b'; // Yellow for medium performing
     return '#10b981'; // Green for high performing
+  };
+
+  const getPieChartColor = (lpRatio) => {
+    // Color based on LP ratio performance using specific colors
+    if (lpRatio >= 18.0) return '#14b8a6'; // Teal/Green for highest performing (18%+)
+    if (lpRatio >= 17.5) return '#14b8a6'; // Teal/Green (17.5-17.99%)
+    if (lpRatio >= 17.0) return '#14b8a6'; // Teal/Green (17.0-17.49%)
+    if (lpRatio >= 16.5) return '#f97316'; // Orange (16.5-16.99%)
+    if (lpRatio >= 16.0) return '#f97316'; // Orange (16.0-16.49%)
+    if (lpRatio >= 15.5) return '#f97316'; // Orange (15.5-15.99%)
+    if (lpRatio >= 15.0) return '#ef4444'; // Red (15.0-15.49%)
+    if (lpRatio >= 14.5) return '#ef4444'; // Red (14.5-14.99%)
+    if (lpRatio >= 14.0) return '#ef4444'; // Red (14.0-14.49%)
+    return '#ef4444'; // Red for lowest performing (<14.0%)
   };
 
   if (loading) {
@@ -268,9 +382,14 @@ const FDEDashboard = ({ onLogout }) => {
             Avg LP Ratio
           </div>
           <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#f59e0b' }}>
-            {Math.round(summaryStats.overall_avg_lp_ratio || 0)}%
+            {sectorLPData.length > 0 ? 
+              (sectorLPData.reduce((sum, sector) => sum + sector.avg_lp_ratio, 0) / sectorLPData.length).toFixed(2) :
+              (summaryStats.overall_avg_lp_ratio || 0).toFixed(2)
+            }%
           </div>
-          <div className={`${styles.summarySub} ${styles[theme]}`}>National Average</div>
+          <div className={`${styles.summarySub} ${styles[theme]}`}>
+            {sectorLPData.length > 0 ? 'Sector Average' : 'National Average'}
+          </div>
         </div>
       </div>
 
@@ -278,9 +397,9 @@ const FDEDashboard = ({ onLogout }) => {
         <div className={`${styles.card} ${styles[theme]}`}>
           <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
             <IoBarChartOutline style={{ marginRight: '8px', fontSize: '20px' }} />
-            Sector Distribution
+            Sector-Wise Lesson Plan Usage
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={350} style={{ marginTop: '50%',transform: 'translateY(-50%)' }}>
             <PieChart>
               <Pie
                 data={sectorCounts}
@@ -288,14 +407,24 @@ const FDEDashboard = ({ onLogout }) => {
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                outerRadius={80}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                outerRadius={120}
+                innerRadius={40}
+                label={({ name, value, percent }) => {
+                  // Show label inside the pie slice if percentage is > 8%
+                  if (percent > 0.08) {
+                    return `${name}\n${value.toFixed(1)}%`;
+                  }
+                  return '';
+                }}
+                labelLine={false}
+                paddingAngle={2}
               >
                 {sectorCounts.map((entry, idx) => (
-                  <Cell key={`cell-${idx}`} fill={regionColors[idx % regionColors.length]} />
+                  <Cell key={`cell-${idx}`} fill={getPieChartColor(entry.value)} />
                 ))}
               </Pie>
               <Tooltip 
+                formatter={(value, name) => [`${value.toFixed(2)}%`, name]}
                 contentStyle={{
                   backgroundColor: theme === 'dark' ? '#1e293b' : '#ffffff',
                   border: `1px solid ${theme === 'dark' ? '#334155' : '#e2e8f0'}`,
@@ -303,7 +432,11 @@ const FDEDashboard = ({ onLogout }) => {
                   color: theme === 'dark' ? '#e2e8f0' : '#1e293b'
                 }}
               />
-              <Legend />
+              <Legend 
+                verticalAlign="bottom" 
+                height={36}
+                formatter={(value, entry) => `${entry.payload.name} (${entry.payload.value.toFixed(1)}%)`}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -336,7 +469,7 @@ const FDEDashboard = ({ onLogout }) => {
                     <div className={styles.sectorDetails}>
                       <div className={`${styles.sectorName} ${styles[theme]}`}>{sector.name}</div>
                       <div className={`${styles.sectorStats} ${styles[theme]}`}>
-                        {sector.schoolCount} schools • Avg LP: {sector.avgLPRatio.toFixed(1)}%
+                        {sector.schoolCount} schools • Avg LP: {sector.avgLPRatio.toFixed(2)}%
                       </div>
                     </div>
                   </div>
@@ -349,7 +482,7 @@ const FDEDashboard = ({ onLogout }) => {
                       ) : (
                         <IoInformationCircleOutline style={{ marginRight: '4px', fontSize: '16px' }} />
                       )}
-                      {sector.performanceScore}%
+                      {sector.performanceScore.toFixed(2)}%
                     </div>
                     <div className={`${styles.performanceLabel} ${styles[theme]}`}>
                       {index === 0 ? 'Lowest' : index === sectorPerformance.length - 1 ? 'Highest' : 'Medium'}
@@ -381,11 +514,125 @@ const FDEDashboard = ({ onLogout }) => {
           </div>
         </div>
       </div>
-      <div className={`${styles.sectorFilterContainer} ${styles[theme]}`}>
-        <h3 className={`${styles.sectorFilterTitle} ${styles[theme]}`}>
-          <IoFilterOutline style={{ marginRight: '8px', fontSize: '20px' }} />
-          Filter by Sector (AEO)
+
+      {/* New Section: Detailed Sector LP Data */}
+      {sectorLPData.length > 0 && (
+        <div className={`${styles.fullWidthCard} ${styles[theme]}`}>
+          <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
+            <IoStatsChartOutline style={{ marginRight: '8px', fontSize: '20px' }} />
+            Sector LP Ratio Details
+            <span style={{ 
+              fontSize: '0.9rem', 
+              color: theme === 'dark' ? '#94a3b8' : '#64748b', 
+              fontWeight: 'normal', 
+              marginLeft: '8px' 
+            }}>
+              (Based on Individual Teacher Performance)
+            </span>
+          </h3>
+          <div className={styles.grid} style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+            {sectorLPData.map((sector, index) => {
+              const performanceColor = getPerformanceColor(index + 1, sectorLPData.length);
+              return (
+                <div key={sector.sector} className={`${styles.card} ${styles[theme]}`} style={{ 
+                  borderLeft: `4px solid ${performanceColor}`,
+                  padding: '20px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <h4 style={{ 
+                      margin: 0, 
+                      fontSize: '1.1rem', 
+                      fontWeight: '600',
+                      color: theme === 'dark' ? '#f1f5f9' : '#1e293b'
+                    }}>
+                      {sector.sector}
+                    </h4>
+                    <div style={{ 
+                      background: performanceColor, 
+                      color: 'white', 
+                      padding: '4px 12px', 
+                      borderRadius: '12px', 
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}>
+                      Rank #{index + 1}
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                    <div>
+                      <div style={{ 
+                        fontSize: '0.9rem', 
+                        color: theme === 'dark' ? '#94a3b8' : '#64748b',
+                        marginBottom: '5px'
+                      }}>
+                        Average LP Ratio
+                      </div>
+                      <div style={{ 
+                        fontSize: '1.5rem', 
+                        fontWeight: '700',
+                        color: performanceColor
+                      }}>
+                        {sector.avg_lp_ratio.toFixed(2)}%
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ 
+                        fontSize: '0.9rem', 
+                        color: theme === 'dark' ? '#94a3b8' : '#64748b',
+                        marginBottom: '5px'
+                      }}>
+                        Total Teachers
+                      </div>
+                      <div style={{ 
+                        fontSize: '1.5rem', 
+                        fontWeight: '700',
+                        color: theme === 'dark' ? '#e2e8f0' : '#475569'
+                      }}>
+                        {sector.teacher_count}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ 
+                    fontSize: '0.9rem', 
+                    color: theme === 'dark' ? '#94a3b8' : '#64748b',
+                    marginBottom: '15px'
+                  }}>
+                    {sector.school_count} schools in this sector
+                  </div>
+                  
+                  <div style={{ 
+                    fontSize: '0.8rem', 
+                    color: theme === 'dark' ? '#64748b' : '#94a3b8',
+                    fontStyle: 'italic'
+                  }}>
+                    Based on {sector.teacher_count} individual teacher LP ratios
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      
+      <div className={`${styles.fullWidthCard} ${styles[theme]}`}>
+        <div className={`${styles.schoolsHeader} ${styles[theme]}`}>
+          <div className={styles.schoolsTitleSection}>
+            <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
+              <IoSchoolOutline style={{ marginRight: '8px', fontSize: '20px' }} />
+              {selectedSector === 'All' ? 'All Schools' : `${selectedSector} Sector Schools`}
+              <span style={{ 
+                fontSize: '0.9rem', 
+                color: theme === 'dark' ? '#94a3b8' : '#64748b', 
+                fontWeight: 'normal', 
+                marginLeft: '8px' 
+              }}>
+                ({filteredSchools.length} schools)
+              </span>
         </h3>
+            <div className={`${styles.sectorFilterSection} ${styles[theme]}`}>
         <div className={styles.sectorButtonsRow}>
           <button 
             className={`${styles.sectorButton} ${styles[theme]} ${selectedSector === 'All' ? styles.active : ''}`}
@@ -404,30 +651,71 @@ const FDEDashboard = ({ onLogout }) => {
           ))}
         </div>
       </div>
-      
-      <div className={`${styles.fullWidthCard} ${styles[theme]}`}>
-        <h3 className={`${styles.sectionTitle} ${styles[theme]}`}>
-          <IoSchoolOutline style={{ marginRight: '8px', fontSize: '20px' }} />
-          {selectedSector === 'All' ? 'All Schools' : `${selectedSector} Sector Schools`}
-          <span style={{ 
-            fontSize: '0.9rem', 
-            color: theme === 'dark' ? '#94a3b8' : '#64748b', 
-            fontWeight: 'normal', 
-            marginLeft: '8px' 
-          }}>
-            ({filteredSchools.length} schools)
-          </span>
-        </h3>
-        <div className={`${styles.schoolsList} ${styles[theme]}`}>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          </div>
+          <div className={styles.schoolsFilterSection}>
+            <div className={styles.emisFilterContainer}>
+              <input
+                type="text"
+                placeholder="Filter by EMIS No..."
+                value={emisFilter}
+                onChange={(e) => setEmisFilter(e.target.value)}
+                className={`${styles.emisFilterInput} ${styles[theme]}`}
+              />
+            </div>
+            <div className={styles.sortSelectContainer}>
+              <select 
+                className={`${styles.sortSelect} ${styles[theme]}`}
+                value={sortFilter}
+                onChange={(e) => setSortFilter(e.target.value)}
+              >
+                <option value="performance-low-high">Low to High Performing</option>
+                <option value="performance-high-low">High to Low Performing</option>
+                <option value="lp-low-high">Low to High LP Ratio</option>
+                <option value="lp-high-low">High to Low LP Ratio</option>
+                <option value="teachers-low-high">Low to High Teacher Count</option>
+                <option value="teachers-high-low">High to Low Teacher Count</option>
+                <option value="emis-asc">EMIS Ascending</option>
+                <option value="emis-desc">EMIS Descending</option>
+                <option value="name-a-z">Name A-Z</option>
+                <option value="name-z-a">Name Z-A</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className={`${styles.schoolsTable} ${styles[theme]}`}>
+          <table className={`${styles.schoolsTableElement} ${styles[theme]}`}>
+            <thead>
+              <tr className={`${styles.tableHeader} ${styles[theme]}`}>
+                <th>EMIS No</th>
+                <th>School Name</th>
+                <th>Avg LP</th>
+                <th>Total Teachers</th>
+                <th>Internet Availability</th>
+                <th>Student Teacher Ratio</th>
+                <th>Active Status</th>
+              </tr>
+            </thead>
+            <tbody>
             {filteredSchools.map(school => {
               const avgLP = school.avg_lp_ratio || 0;
               const isActive = avgLP > 10;
               return (
-                <li key={school.emis} className={`${styles.schoolItem} ${styles[theme]} ${!isActive ? styles.inactive : ''}`}>
-                  <IoSchoolOutline style={{ marginRight: '8px', fontSize: '16px', opacity: 0.7 }} />
-                  {school.school_name} ({school.sector})
-                  <span className={`${styles.statusTag} ${isActive ? styles.active : styles.inactive}`}>
+                  <tr key={school.emis} className={`${styles.tableRow} ${styles[theme]} ${!isActive ? styles.inactive : ''}`}>
+                    <td className={styles.emisCell}>{school.emis}</td>
+                    <td className={styles.schoolNameCell}>
+                      {school.school_name}
+                      <span className={styles.sectorTag}>({school.sector})</span>
+                    </td>
+                    <td className={styles.avgLpCell}>{avgLP.toFixed(2)}%</td>
+                    <td className={styles.teacherCell}>{school.teacher_count || 0}</td>
+                    <td className={styles.internetCell}>
+                      <span className={`${styles.internetBadge} ${school.internet_availability === 'Yes' ? styles.available : styles.notAvailable}`}>
+                        {school.internet_availability || 'N/A'}
+                      </span>
+                    </td>
+                    <td className={styles.ratioCell}>{school.student_teacher_ratio || 'N/A'}</td>
+                    <td className={styles.statusCell}>
+                      <span className={`${styles.statusBadge} ${isActive ? styles.active : styles.inactive}`}>
                     {isActive ? (
                       <>
                         <IoCheckmarkCircleOutline style={{ marginRight: '4px', fontSize: '14px' }} />
@@ -440,10 +728,12 @@ const FDEDashboard = ({ onLogout }) => {
                       </>
                     )}
                   </span>
-                </li>
+                    </td>
+                  </tr>
               );
             })}
-          </ul>
+            </tbody>
+          </table>
         </div>
       </div>
 

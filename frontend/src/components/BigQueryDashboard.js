@@ -185,7 +185,7 @@ const BigQueryDashboard = () => {
 
         <div className={styles.chartCard}>
           <h3 className={styles.chartTitle}>School Distribution by Sector</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={350}>
             <PieChart>
               <Pie
                 data={chartData}
@@ -193,9 +193,17 @@ const BigQueryDashboard = () => {
                 nameKey="sector"
                 cx="50%"
                 cy="50%"
-                outerRadius={80}
+                outerRadius={120}
+                innerRadius={40}
                 fill="#8884d8"
-                label
+                label={({ sector, school_count, percent }) => {
+                  if (percent > 0.08) {
+                    return `${sector}\n${school_count}`;
+                  }
+                  return '';
+                }}
+                labelLine={false}
+                paddingAngle={2}
               />
               <Tooltip />
             </PieChart>

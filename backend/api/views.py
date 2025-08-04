@@ -8,13 +8,15 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
-from .models import UserProfile, Conversation, Message, TeacherData, AggregatedData, FilterOptions, SchoolData
-from .serializers import UserSerializer, ConversationSerializer, MessageSerializer, RegisterSerializer
+from .models import UserProfile, Conversation, Message, TeacherData, AggregatedData, FilterOptions, SchoolData, SectorData, UserSchoolProfile
+from .serializers import UserSerializer, ConversationSerializer, MessageSerializer, RegisterSerializer, SchoolDataSerializer, SectorDataSerializer, TeacherDataSerializer
 from .services import DataService
 from rest_framework import status
 from uuid import uuid4
 import os
 from google.cloud import bigquery
+import json
+from django.conf import settings
 
 # Conversations
 class ConversationListCreateView(ListCreateAPIView):
@@ -96,6 +98,119 @@ class UserMessagesView(APIView):
             
         except User.DoesNotExist:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class SchoolLPDataView(APIView):
+    """Get school LP ratio data"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            schools = SchoolData.objects.all().order_by('school_name')
+            serializer = SchoolDataSerializer(schools, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class SectorLPDataView(APIView):
+    """Get sector LP ratio data"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            sectors = SectorData.objects.all().order_by('sector')
+            serializer = SectorDataSerializer(sectors, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TeacherLPDataView(APIView):
+    """Get teacher LP ratio data with optional filtering"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            teachers = TeacherData.objects.all()
+            
+            # Apply filters if provided
+            sector = request.query_params.get('sector')
+            if sector:
+                teachers = teachers.filter(sector=sector)
+            
+            emis = request.query_params.get('emis')
+            if emis:
+                teachers = teachers.filter(emis=emis)
+            
+            # Order by teacher name
+            teachers = teachers.order_by('teacher')
+            
+            serializer = TeacherDataSerializer(teachers, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class LPDataSummaryView(APIView):
+    """Get comprehensive LP data summary"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            from django.db.models import Avg, Count
+            
+            # Overall statistics
+            # Use UserSchoolProfile for more accurate teacher count
+            total_teachers = UserSchoolProfile.objects.values('user_id').distinct().count()
+            total_schools = SchoolData.objects.count()
+            total_sectors = SectorData.objects.count()
+            overall_avg_lp = TeacherData.objects.aggregate(avg=Avg('lp_ratio'))['avg'] or 0
+            
+            # Sector summary
+            sector_summary = SectorData.objects.all().order_by('sector')
+            sector_data = []
+            for sector in sector_summary:
+                sector_data.append({
+                    'sector': sector.sector,
+                    'avg_lp_ratio': sector.avg_lp_ratio,
+                    'teacher_count': sector.teacher_count,
+                    'school_count': sector.school_count
+                })
+            
+            # Top performing schools
+            top_schools = SchoolData.objects.filter(avg_lp_ratio__gt=0).order_by('-avg_lp_ratio')[:10]
+            top_schools_data = []
+            for school in top_schools:
+                top_schools_data.append({
+                    'school_name': school.school_name,
+                    'sector': school.sector,
+                    'avg_lp_ratio': school.avg_lp_ratio,
+                    'teacher_count': school.teacher_count
+                })
+            
+            # Top performing teachers
+            top_teachers = TeacherData.objects.filter(lp_ratio__gt=0).order_by('-lp_ratio')[:10]
+            top_teachers_data = []
+            for teacher in top_teachers:
+                top_teachers_data.append({
+                    'teacher': teacher.teacher,
+                    'school': teacher.school,
+                    'sector': teacher.sector,
+                    'lp_ratio': teacher.lp_ratio
+                })
+            
+            summary = {
+                'overall_stats': {
+                    'total_teachers': total_teachers,
+                    'total_schools': total_schools,
+                    'total_sectors': total_sectors,
+                    'overall_avg_lp_ratio': overall_avg_lp
+                },
+                'sector_summary': sector_data,
+                'top_schools': top_schools_data,
+                'top_teachers': top_teachers_data
+            }
+            
+            return Response(summary, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -617,7 +732,24 @@ class LocalSummaryStatsView(APIView):
             
             # Calculate summary statistics
             total_schools = queryset.count()
-            total_teachers = queryset.aggregate(total=models.Sum('teacher_count'))['total'] or 0
+            
+            # Calculate total teachers using UserSchoolProfile table for more accurate count
+            teacher_profile_queryset = UserSchoolProfile.objects.all()
+            
+            # Apply filters based on user role
+            if user_profile.role == 'AEO' and user_profile.sector:
+                teacher_profile_queryset = teacher_profile_queryset.filter(sector=user_profile.sector)
+            elif user_profile.role == 'Principal' and user_profile.school_name:
+                teacher_profile_queryset = teacher_profile_queryset.filter(school=user_profile.school_name)
+            
+            # Apply additional filters
+            if sector_filter:
+                teacher_profile_queryset = teacher_profile_queryset.filter(sector=sector_filter)
+            
+            # Count distinct teachers from user school profiles
+            total_teachers = teacher_profile_queryset.values('user_id').distinct().count()
+            
+            # Calculate average LP ratio from school data
             avg_lp_ratio = queryset.aggregate(avg=models.Avg('avg_lp_ratio'))['avg'] or 0
             
             # Get recent teacher data for additional stats
@@ -1303,6 +1435,24 @@ class AEOSectorSchoolsView(APIView):
             query_job = client.query(query, job_config=job_config)
             results = query_job.result()
             
+            # Load school infrastructure data from JSON file
+            json_file_path = os.path.join(settings.BASE_DIR, '..', 'frontend', 'src', 'components', 'school_profile_data.json')
+            school_infrastructure_data = {}
+            
+            try:
+                with open(json_file_path, 'r', encoding='utf-8') as f:
+                    json_data = json.load(f)
+                    if 'Main Sheet' in json_data:
+                        for item in json_data['Main Sheet']:
+                            emis = item.get("School's EMIS", "")
+                            if emis:
+                                school_infrastructure_data[emis] = {
+                                    'student_teacher_ratio': item.get('Student Teacher Ratio', '1:0'),
+                                    'internet_availability': item.get('Internet', 'No')
+                                }
+            except Exception as e:
+                print(f"Error loading school infrastructure data: {e}")
+            
             # Convert results to list of dictionaries
             data = []
             for row in results:
@@ -1315,6 +1465,12 @@ class AEOSectorSchoolsView(APIView):
                 
                 # Determine activity status
                 activity_status = 'Active' if activity_percentage > 10 else 'Inactive'
+                
+                # Get infrastructure data for this school
+                emis_str = str(row.EMIS) if row.EMIS else ""
+                infrastructure_data = school_infrastructure_data.get(emis_str, {})
+                student_teacher_ratio = infrastructure_data.get('student_teacher_ratio', '1:0')
+                internet_availability = infrastructure_data.get('internet_availability', 'No')
                 
                 data.append({
                     'emis': row.EMIS,
@@ -1329,7 +1485,9 @@ class AEOSectorSchoolsView(APIView):
                     'inactive_teachers': inactive_teachers,
                     'activity_percentage': activity_percentage,
                     'activity_status': activity_status,
-                    'teachers_with_observations': int(row.teachers_with_observations) if row.teachers_with_observations else 0
+                    'teachers_with_observations': int(row.teachers_with_observations) if row.teachers_with_observations else 0,
+                    'student_teacher_ratio': student_teacher_ratio,
+                    'internet_availability': internet_availability
                 })
             
             return Response(data)
@@ -1422,8 +1580,17 @@ class AdminDashboardView(APIView):
             }
             
             # Calculate comprehensive statistics
+            # Use UserSchoolProfile for more accurate teacher count
+            teacher_profile_queryset = UserSchoolProfile.objects.all()
+            
+            # Apply filters to teacher profiles
+            if sector:
+                teacher_profile_queryset = teacher_profile_queryset.filter(sector__icontains=sector)
+            if school:
+                teacher_profile_queryset = teacher_profile_queryset.filter(school__icontains=school)
+            
             stats = {
-                'total_teachers': teacher_data.count(),
+                'total_teachers': teacher_profile_queryset.values('user_id').distinct().count(),
                 'total_schools': school_data.count(),
                 'total_conversations': conversations.count(),
                 'total_messages': messages.count(),
@@ -1687,10 +1854,62 @@ class AdminDetailedDataView(APIView):
 
 
 # Admin Messaging
+class LessonPlanUsageDistributionView(APIView):
+    """Get lesson plan usage distribution by sector"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Calculate lesson plan usage distribution by sector
+            sector_distribution = {}
+            total_usage = 0
+            
+            # Get all sectors
+            sectors = SchoolData.objects.values_list('sector', flat=True).distinct()
+            
+            for sector in sectors:
+                # Get all schools in this sector
+                sector_schools = SchoolData.objects.filter(sector=sector)
+                
+                # Calculate total lesson plan usage for this sector
+                sector_usage = 0
+                for school in sector_schools:
+                    # Multiply avg_lp_ratio by teacher_count to get weighted usage
+                    school_usage = (school.avg_lp_ratio or 0) * (school.teacher_count or 0)
+                    sector_usage += school_usage
+                
+                sector_distribution[sector] = sector_usage
+                total_usage += sector_usage
+            
+            # Convert to percentages
+            if total_usage > 0:
+                for sector in sector_distribution:
+                    sector_distribution[sector] = (sector_distribution[sector] / total_usage) * 100
+            
+            # Format the response
+            distribution_data = []
+            for sector, percentage in sector_distribution.items():
+                distribution_data.append({
+                    'sector': sector,
+                    'percentage': round(percentage, 1),
+                    'usage': sector_distribution[sector]
+                })
+            
+            # Sort by percentage descending
+            distribution_data.sort(key=lambda x: x['percentage'], reverse=True)
+            
+            return Response({
+                'distribution': distribution_data,
+                'total_usage': total_usage
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({'error': f'Error calculating distribution: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class AdminMessageCreateView(APIView):
     """Admin endpoint to send messages to any user"""
     permission_classes = [IsAuthenticated]
-
+    
     def post(self, request):
         # Check if user is admin (superuser)
         if not request.user.is_superuser:
@@ -1839,3 +2058,74 @@ class AdminMessageCreateView(APIView):
             
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class SchoolsWithInfrastructureDataView(APIView):
+    """Get school data with internet availability and student-teacher ratio from JSON"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user = request.user
+            user_profile = user.userprofile
+            
+            # Get filter parameters
+            sector_filter = request.query_params.get('sector', '')
+            
+            # Build query for school data
+            queryset = SchoolData.objects.all()
+            
+            # Apply filters based on user role
+            if user_profile.role == 'AEO' and user_profile.sector:
+                queryset = queryset.filter(sector=user_profile.sector)
+            elif user_profile.role == 'Principal' and user_profile.school_name:
+                queryset = queryset.filter(school_name=user_profile.school_name)
+            
+            # Apply additional filters
+            if sector_filter:
+                queryset = queryset.filter(sector=sector_filter)
+            
+            # Order by school name
+            queryset = queryset.order_by('school_name')
+            
+            # Load JSON data for internet and student-teacher ratio
+            json_data = {}
+            try:
+                json_file_path = os.path.join(settings.BASE_DIR, '..', 'frontend', 'src', 'components', 'school_profile_data.json')
+                with open(json_file_path, 'r', encoding='utf-8') as f:
+                    json_data = json.load(f)
+            except Exception as e:
+                print(f"Error loading JSON data: {e}")
+                json_data = {"Main Sheet": []}
+            
+            # Create a lookup dictionary for JSON data
+            json_lookup = {}
+            for item in json_data.get("Main Sheet", []):
+                emis = item.get("School's EMIS")
+                if emis:
+                    json_lookup[emis] = {
+                        'internet_availability': item.get("Internet", "N/A"),
+                        'student_teacher_ratio': item.get("Student Teacher Ratio", "N/A")
+                    }
+            
+            # Convert to list of dictionaries with additional data
+            data = []
+            for item in queryset:
+                # Get JSON data for this school
+                json_info = json_lookup.get(item.emis, {})
+                
+                data.append({
+                    'emis': item.emis,
+                    'school_name': item.school_name,
+                    'sector': item.sector,
+                    'teacher_count': item.teacher_count,
+                    'avg_lp_ratio': item.avg_lp_ratio,
+                    'internet_availability': json_info.get('internet_availability', 'N/A'),
+                    'student_teacher_ratio': json_info.get('student_teacher_ratio', 'N/A'),
+                    'activity_status': 'Active' if (item.avg_lp_ratio or 0) >= 10.0 and (item.teacher_count or 0) > 0 else 'Inactive'
+                })
+            
+            return Response(data)
+            
+        except Exception as e:
+            print(f"Schools with infrastructure data error: {e}")
+            return Response({'error': f'Error fetching schools data: {str(e)}'}, status=500)

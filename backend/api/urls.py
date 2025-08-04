@@ -32,6 +32,8 @@ urlpatterns = [
     path('school-infrastructure/', views.SchoolInfrastructureDataView.as_view(), name='school-infrastructure'),
     # Enhanced schools data with WiFi and mobile info
     path('enhanced-schools/', views.EnhancedSchoolsDataView.as_view(), name='enhanced-schools'),
+    # Schools with infrastructure data (internet + student-teacher ratio)
+    path('schools-with-infrastructure/', views.SchoolsWithInfrastructureDataView.as_view(), name='schools-with-infrastructure'),
            # Health check
     path('health/', views.HealthCheckView.as_view(), name='health-check'),
     # Data sync management
@@ -48,4 +50,11 @@ urlpatterns = [
     path('admin/data/<str:data_type>/', views.AdminDetailedDataView.as_view(), name='admin-detailed-data'),
     # Admin messaging endpoint
     path('admin/messages/', views.AdminMessageCreateView.as_view(), name='admin-messages'),
+    # Lesson plan usage distribution
+    path('lesson-plan-usage-distribution/', views.LessonPlanUsageDistributionView.as_view(), name='lesson-plan-usage-distribution'),
+    # LP Data endpoints
+    path('lp-data/schools/', views.SchoolLPDataView.as_view(), name='school-lp-data'),
+    path('lp-data/sectors/', views.SectorLPDataView.as_view(), name='sector-lp-data'),
+    path('lp-data/teachers/', views.TeacherLPDataView.as_view(), name='teacher-lp-data'),
+    path('lp-data/summary/', views.LPDataSummaryView.as_view(), name='lp-data-summary'),
 ]

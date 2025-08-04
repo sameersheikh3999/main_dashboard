@@ -411,7 +411,7 @@ function App() {
         apiService.getBigQuerySummaryStats(summaryStatsParams),
         apiService.getBigQueryTeacherData(teacherDataParams),
         apiService.getBigQueryAggregatedData('weekly', aggregatedDataParams),
-        apiService.getBigQueryAllSchools()
+        apiService.getSchoolsWithInfrastructure()
       ]);
 
       console.log('BigQuery data loaded:', {
@@ -843,7 +843,7 @@ function App() {
             <Grid>
               <Card>
                 <SectionTitle>School Status Distribution</SectionTitle>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
                       data={schoolStatusData}
@@ -851,13 +851,23 @@ function App() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={60}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={100}
+                      innerRadius={30}
+                      label={({ name, percent }) => {
+                        if (percent > 0.1) {
+                          return `${name}\n${(percent * 100).toFixed(0)}%`;
+                        }
+                        return '';
+                      }}
+                      labelLine={false}
+                      paddingAngle={2}
                     >
                       {schoolStatusData.map((entry, idx) => (
                         <Cell key={`cell-${idx}`} fill={schoolStatusColors[idx]} />
                       ))}
                     </Pie>
+                    <Tooltip formatter={(value, name) => [`${value}`, name]} />
+                    <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
                 </ResponsiveContainer>
               </Card>
@@ -1022,7 +1032,7 @@ function App() {
             <Grid>
               <Card>
                 <SectionTitle>School Status Distribution</SectionTitle>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
                       data={schoolStatusData}
@@ -1030,13 +1040,23 @@ function App() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={60}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={100}
+                      innerRadius={30}
+                      label={({ name, percent }) => {
+                        if (percent > 0.1) {
+                          return `${name}\n${(percent * 100).toFixed(0)}%`;
+                        }
+                        return '';
+                      }}
+                      labelLine={false}
+                      paddingAngle={2}
                     >
                       {schoolStatusData.map((entry, idx) => (
                         <Cell key={`cell-${idx}`} fill={schoolStatusColors[idx]} />
                       ))}
                     </Pie>
+                    <Tooltip formatter={(value, name) => [`${value}`, name]} />
+                    <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
                 </ResponsiveContainer>
               </Card>
@@ -1057,7 +1077,7 @@ function App() {
             <Grid>
               <Card>
                 <SectionTitle>Teacher Engagement Levels</SectionTitle>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
                       data={teacherEngagementData}
@@ -1065,13 +1085,23 @@ function App() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={60}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={100}
+                      innerRadius={30}
+                      label={({ name, percent }) => {
+                        if (percent > 0.1) {
+                          return `${name}\n${(percent * 100).toFixed(0)}%`;
+                        }
+                        return '';
+                      }}
+                      labelLine={false}
+                      paddingAngle={2}
                     >
                       {teacherEngagementData.map((entry, idx) => (
                         <Cell key={`cell-engage-${idx}`} fill={teacherEngagementColors[idx]} />
                       ))}
                     </Pie>
+                    <Tooltip formatter={(value, name) => [`${value}`, name]} />
+                    <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
                 </ResponsiveContainer>
               </Card>
