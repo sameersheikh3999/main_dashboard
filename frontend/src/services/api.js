@@ -46,6 +46,9 @@ const makeRequest = async (url, options = {}) => {
     ...options,
   };
 
+  console.log('Making request to:', url);
+  console.log('Request config:', config);
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), config.timeout);
 
@@ -55,9 +58,11 @@ const makeRequest = async (url, options = {}) => {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
+    console.log('Response status:', response.status);
     return await handleResponse(response);
   } catch (error) {
     clearTimeout(timeoutId);
+    console.error('Request error:', error);
     if (error.name === 'AbortError') {
       throw new Error('Request timeout');
     }
@@ -89,6 +94,60 @@ export const apiService = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh: refreshToken }),
+      })
+    );
+  },
+
+  // Password management
+  changePassword: async (passwordData) => {
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/auth/password/change/`, {
+        method: 'POST',
+        body: JSON.stringify(passwordData),
+      })
+    );
+  },
+
+  requestPasswordReset: async (resetData) => {
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/auth/password/reset/request/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(resetData),
+      })
+    );
+  },
+
+  confirmPasswordReset: async (resetData) => {
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/auth/password/reset/confirm/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(resetData),
+      })
+    );
+  },
+
+  validatePassword: async (password) => {
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/auth/password/validate/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+    );
+  },
+
+  // User profile management
+  getUserProfile: async () => {
+    return retryRequest(() => makeRequest(`${API_BASE_URL}/auth/profile/`));
+  },
+
+  updateUserProfile: async (profileData) => {
+    return retryRequest(() => 
+      makeRequest(`${API_BASE_URL}/auth/profile/`, {
+        method: 'PUT',
+        body: JSON.stringify(profileData),
       })
     );
   },
@@ -285,6 +344,17 @@ export const apiService = {
       if (value) params.append(key, value);
     });
     return retryRequest(() => makeRequest(`${API_BASE_URL}/admin/data/${dataType}/?${params}`));
+  },
+
+  getLoginTimestamps: async (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.append(key, value);
+    });
+    const url = `${API_BASE_URL}/admin/login-timestamps/?${params}`;
+    console.log('Making request to:', url);
+    console.log('Filters:', filters);
+    return retryRequest(() => makeRequest(url));
   },
 
   getLessonPlanUsageDistribution: async () => {

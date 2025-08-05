@@ -13,6 +13,7 @@ import { Bar } from 'react-chartjs-2';
 import { apiService } from '../services/api';
 import MessagingModal from './MessagingModal';
 import MessagingSidebar from './MessagingSidebar';
+import PasswordChangeModal from './PasswordChangeModal';
 import styles from './AEODashboard.module.css';
 import { 
   IoBarChartOutline, 
@@ -75,6 +76,7 @@ const AEODashboard = ({ onLogout }) => {
   const [user, setUser] = useState(null);
   const [userSector, setUserSector] = useState('');
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [passwordChangeModalOpen, setPasswordChangeModalOpen] = useState(false);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -402,6 +404,25 @@ const AEODashboard = ({ onLogout }) => {
                 </>
               )}
             </button>
+            <button 
+              className={styles.logoutBtn} 
+              onClick={() => setPasswordChangeModalOpen(true)}
+              style={{  
+                marginRight: '10px',
+                border: 'none',
+                color: 'white',
+                fontWeight: 'bold',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                transition: 'background-color 0.3s ease',
+                background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                color: '#475569',
+                border: '1px solid #cbd5e1'
+              }}
+            >
+              Change Password
+            </button>
             <button className={styles.logoutBtn} onClick={onLogout}>Logout</button>
           </div>
         </div>
@@ -447,14 +468,6 @@ const AEODashboard = ({ onLogout }) => {
               fontWeight: 700
             }}>
               Top 10 Schools Performance Overview
-            </span>
-            <span style={{ 
-              fontSize: '0.9rem', 
-              color: theme === 'dark' ? '#94a3b8' : '#64748b', 
-              fontWeight: 'normal', 
-              marginLeft: '12px' 
-            }}>
-              🚀 Interactive Chart
             </span>
           </h3>
           <div style={{ 
@@ -520,7 +533,7 @@ const AEODashboard = ({ onLogout }) => {
                         return `🏫 ${context[0].label}`;
                       },
                       label: function(context) {
-                        return `LP Ratio: ${context.parsed.x}%`;
+                        return `LP Ratio: ${context.parsed.x.toFixed(2)}%`;
                       }
                     }
                   }
@@ -540,7 +553,7 @@ const AEODashboard = ({ onLogout }) => {
                          weight: '500'
                        },
                        callback: function(value) {
-                         return value + '%';
+                         return value.toFixed(2) + '%';
                        }
                      },
                      title: {
@@ -599,13 +612,13 @@ const AEODashboard = ({ onLogout }) => {
                     <div className={styles.schoolDetails}>
                       <div className={`${styles.schoolName} ${styles[theme]}`}>{school.school_name}</div>
                       <div className={`${styles.schoolStats} ${styles[theme]}`}>
-                        {school.teacher_count || 0} teachers • LP: {school.avg_lp_ratio ? `${school.avg_lp_ratio.toFixed(1)}%` : 'N/A'}
+                        {school.teacher_count || 0} teachers • LP: {school.avg_lp_ratio ? `${school.avg_lp_ratio.toFixed(2)}%` : 'N/A'}
                       </div>
                     </div>
                   </div>
                   <div className={styles.schoolPerformance}>
                     <div className={styles.performanceScore} style={{ color: performanceColor }}>
-                      {school.avg_lp_ratio ? `${school.avg_lp_ratio.toFixed(1)}%` : 'N/A'}
+                      {school.avg_lp_ratio ? `${school.avg_lp_ratio.toFixed(2)}%` : 'N/A'}
                     </div>
                     <div className={`${styles.performanceLabel} ${styles[theme]}`}>
                       {school.avg_lp_ratio >= 80 ? 'Excellent' : school.avg_lp_ratio >= 60 ? 'Good' : school.avg_lp_ratio >= 40 ? 'Fair' : 'Needs Improvement'}
@@ -804,7 +817,6 @@ const AEODashboard = ({ onLogout }) => {
               <tr>
                 <th>EMIS NO</th>
                 <th>SCHOOL NAME</th>
-                <th>AVG LP</th>
                 <th>TOTAL TEACHERS</th>
                 <th>INTERNET AVAILABILITY</th>
                 <th>STUDENT TEACHER RATIO</th>
@@ -817,13 +829,10 @@ const AEODashboard = ({ onLogout }) => {
                 <tr key={school.emis} className={`${styles.schoolTableRow} ${styles[theme]}`}>
                   <td className={styles.emisCell}>{school.emis}</td>
                   <td className={styles.schoolNameCell}>{school.school_name}</td>
-                  <td className={styles.avgLpCell}>
-                    {school.avg_lp_ratio ? `${school.avg_lp_ratio.toFixed(2)}%` : 'N/A'}
-                  </td>
                   <td className={styles.teacherCountCell}>{school.teacher_count || 0}</td>
                   <td className={styles.internetCell}>
-                    <span className={`${styles.statusBadge} ${school.internet_availability === 'Yes' ? styles.internetYes : styles.internetNo}`}>
-                      {school.internet_availability || 'NO'}
+                    <span className={school.internet_availability === 'Yes' ? styles.internetYes : styles.internetNo}>
+                      {school.internet_availability === 'Yes' ? '✔' : '✖'}
                     </span>
                   </td>
                   <td className={styles.ratioCell}>
@@ -835,7 +844,7 @@ const AEODashboard = ({ onLogout }) => {
                       {school.activity_status !== 'Active' && (
                         <IoCloseCircleOutline style={{ marginLeft: '4px', fontSize: '14px' }} />
                       )}
-                </span>
+                    </span>
                   </td>
                   <td className={styles.actionCell}>
                     <button
@@ -868,6 +877,13 @@ const AEODashboard = ({ onLogout }) => {
         onClose={() => setMessagingSidebarOpen(false)}
         theme={theme}
         onMessagesRead={loadUnreadMessageCount}
+      />
+
+      {/* Password Change Modal */}
+      <PasswordChangeModal
+        isOpen={passwordChangeModalOpen}
+        onClose={() => setPasswordChangeModalOpen(false)}
+        currentUser={user}
       />
     </div>
   );

@@ -5,6 +5,7 @@ import {
 import { apiService } from '../services/api';
 import MessagingModal from './MessagingModal';
 import MessagingSidebar from './MessagingSidebar';
+import PasswordChangeModal from './PasswordChangeModal';
 import styles from './FDEDashboard.module.css';
 import { 
   IoSchoolOutline,
@@ -53,6 +54,8 @@ const FDEDashboard = ({ onLogout }) => {
   });
   const [messagingSidebarOpen, setMessagingSidebarOpen] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [passwordChangeModalOpen, setPasswordChangeModalOpen] = useState(false);
+  const [user, setUser] = useState(null);
 
   // Apply theme to body
   useEffect(() => {
@@ -71,6 +74,9 @@ const FDEDashboard = ({ onLogout }) => {
     loadData();
     loadAEOData();
     loadUnreadMessageCount();
+    // Get current user info
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    setUser(currentUser);
   }, []);
 
   const loadUnreadMessageCount = async () => {
@@ -340,6 +346,24 @@ const FDEDashboard = ({ onLogout }) => {
                   Light
                 </>
               )}
+            </button>
+            <button 
+              onClick={() => setPasswordChangeModalOpen(true)}
+              style={{ 
+                marginRight: '10px',
+                border: 'none',
+                color: 'white',
+                fontWeight: 'bold',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                transition: 'background-color 0.3s ease',
+                background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                color: '#475569',
+                border: '1px solid #cbd5e1'
+              }}
+            >
+              Change Password
             </button>
             <button className={styles.logoutBtn} onClick={onLogout}>
               <IoLogOutOutline style={{ marginRight: '8px', fontSize: '18px' }} />
@@ -753,8 +777,15 @@ const FDEDashboard = ({ onLogout }) => {
         theme={theme}
         onMessagesRead={loadUnreadMessageCount}
       />
+
+      {/* Password Change Modal */}
+      <PasswordChangeModal
+        isOpen={passwordChangeModalOpen}
+        onClose={() => setPasswordChangeModalOpen(false)}
+        currentUser={user}
+      />
     </div>
   );
 };
 
-export default FDEDashboard; 
+export default FDEDashboard;

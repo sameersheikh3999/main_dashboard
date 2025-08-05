@@ -8,8 +8,11 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
-from .models import UserProfile, Conversation, Message, TeacherData, AggregatedData, FilterOptions, SchoolData, SectorData, UserSchoolProfile
-from .serializers import UserSerializer, ConversationSerializer, MessageSerializer, RegisterSerializer, SchoolDataSerializer, SectorDataSerializer, TeacherDataSerializer
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.contrib.auth.hashers import make_password, check_password
+from .models import UserProfile, Conversation, Message, TeacherData, AggregatedData, FilterOptions, SchoolData, SectorData, UserSchoolProfile, UserLoginTimestamp
+from .serializers import UserSerializer, ConversationSerializer, MessageSerializer, RegisterSerializer, SchoolDataSerializer, SectorDataSerializer, TeacherDataSerializer, UserLoginTimestampSerializer
 from .services import DataService
 from rest_framework import status
 from uuid import uuid4
@@ -17,6 +20,7 @@ import os
 from google.cloud import bigquery
 import json
 from django.conf import settings
+import re
 
 # Conversations
 class ConversationListCreateView(ListCreateAPIView):
@@ -1273,6 +1277,13 @@ class CustomLoginView(APIView):
                     # Generate JWT token
                     refresh = RefreshToken.for_user(user)
                     user_data = UserSerializer(user).data
+                    
+                    # Record login timestamp
+                    UserLoginTimestamp.objects.create(
+                        user_id=user.id,
+                        username=user.username
+                    )
+                    
                     return Response({
                         'token': str(refresh.access_token),
                         'user': user_data
@@ -1291,6 +1302,13 @@ class CustomLoginView(APIView):
         
         refresh = RefreshToken.for_user(user)
         user_data = UserSerializer(user).data
+        
+        # Record login timestamp
+        UserLoginTimestamp.objects.create(
+            user_id=user.id,
+            username=user.username
+        )
+        
         return Response({
             'token': str(refresh.access_token),
             'user': user_data
@@ -2129,3 +2147,469 @@ class SchoolsWithInfrastructureDataView(APIView):
         except Exception as e:
             print(f"Schools with infrastructure data error: {e}")
             return Response({'error': f'Error fetching schools data: {str(e)}'}, status=500)
+
+class PasswordChangeView(APIView):
+    """Change password for authenticated users"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        try:
+            current_password = request.data.get('current_password')
+            new_password = request.data.get('new_password')
+            confirm_password = request.data.get('confirm_password')
+            
+            if not all([current_password, new_password, confirm_password]):
+                return Response({
+                    'error': 'All password fields are required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if new password matches confirmation
+            if new_password != confirm_password:
+                return Response({
+                    'error': 'New password and confirmation do not match'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Verify current password
+            if not request.user.check_password(current_password):
+                return Response({
+                    'error': 'Current password is incorrect'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate new password
+            try:
+                validate_password(new_password, request.user)
+            except ValidationError as e:
+                return Response({
+                    'error': 'Password validation failed',
+                    'details': list(e.messages)
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if new password is same as current
+            if request.user.check_password(new_password):
+                return Response({
+                    'error': 'New password must be different from current password'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Update password
+            request.user.set_password(new_password)
+            request.user.save()
+            
+            return Response({
+                'message': 'Password changed successfully'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error changing password: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PasswordResetRequestView(APIView):
+    """Request password reset for any user"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            username = request.data.get('username')
+            role = request.data.get('role', '')
+            
+            if not username:
+                return Response({
+                    'error': 'Username is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Try to find user by username
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                # For principals, try to find by EMIS number
+                if username.isdigit() and role == 'Principal':
+                    try:
+                        # Initialize BigQuery client
+                        client = bigquery.Client()
+                        
+                        # Query to find principal by EMIS
+                        query = """
+                        SELECT DISTINCT
+                            e.Institute as school_name,
+                            e.EMIS,
+                            e.Sector,
+                            'Principal' as role,
+                            CONCAT('principal_', LOWER(REPLACE(REPLACE(e.Institute, ' ', '_'), '-', '_'))) as username
+                        FROM `tbproddb.FDE_Schools` e
+                        WHERE e.EMIS = @emis
+                        LIMIT 1
+                        """
+                        
+                        # Execute query with parameter
+                        query_job = client.query(query, job_config=bigquery.QueryJobConfig(
+                            query_parameters=[
+                                bigquery.ScalarQueryParameter("emis", "INT64", int(username)),
+                            ]
+                        ))
+                        
+                        results = query_job.result()
+                        
+                        # Check if we got any results
+                        principal_data = None
+                        for row in results:
+                            principal_data = {
+                                'username': row.username,
+                                'school_name': row.school_name,
+                                'role': row.role,
+                                'emis': row.EMIS,
+                                'sector': row.Sector
+                            }
+                            break
+                        
+                        if principal_data:
+                            # Create or get the principal user
+                            try:
+                                user = User.objects.get(username=principal_data['username'])
+                            except User.DoesNotExist:
+                                # Create a new user for this principal
+                                user = User.objects.create_user(
+                                    username=principal_data['username'],
+                                    password='pass123',  # Set default password
+                                    email=f"{principal_data['username']}@school.edu.pk"
+                                )
+                                
+                                # Create user profile
+                                UserProfile.objects.create(
+                                    user=user,
+                                    role='Principal',
+                                    school_name=principal_data['school_name']
+                                )
+                            else:
+                                return Response({
+                                    'error': 'User not found'
+                                }, status=status.HTTP_404_NOT_FOUND)
+                        else:
+                            return Response({
+                                'error': 'User not found'
+                            }, status=status.HTTP_404_NOT_FOUND)
+                    except Exception as e:
+                        return Response({
+                            'error': f'Error looking up EMIS: {str(e)}'
+                        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                else:
+                    return Response({
+                        'error': 'User not found'
+                    }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Generate a simple reset token (in production, use proper token generation)
+            reset_token = str(uuid4())
+            
+            # Store reset token in user profile (you might want to create a separate model for this)
+            # For now, we'll use a simple approach
+            user.userprofile.reset_token = reset_token
+            user.userprofile.save()
+            
+            return Response({
+                'message': 'Password reset request submitted successfully',
+                'reset_token': reset_token,  # In production, send this via email
+                'username': user.username
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error processing password reset request: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PasswordResetConfirmView(APIView):
+    """Confirm password reset with token"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            username = request.data.get('username')
+            reset_token = request.data.get('reset_token')
+            new_password = request.data.get('new_password')
+            confirm_password = request.data.get('confirm_password')
+            
+            if not all([username, reset_token, new_password, confirm_password]):
+                return Response({
+                    'error': 'All fields are required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if passwords match
+            if new_password != confirm_password:
+                return Response({
+                    'error': 'New password and confirmation do not match'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Find user
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                return Response({
+                    'error': 'User not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Verify reset token (simplified - in production, add expiration and proper validation)
+            if not hasattr(user, 'userprofile') or user.userprofile.reset_token != reset_token:
+                return Response({
+                    'error': 'Invalid or expired reset token'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate new password
+            try:
+                validate_password(new_password, user)
+            except ValidationError as e:
+                return Response({
+                    'error': 'Password validation failed',
+                    'details': list(e.messages)
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Update password
+            user.set_password(new_password)
+            user.save()
+            
+            # Clear reset token
+            user.userprofile.reset_token = ''
+            user.userprofile.save()
+            
+            return Response({
+                'message': 'Password reset successfully'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error resetting password: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PasswordValidationView(APIView):
+    """Validate password strength"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        try:
+            password = request.data.get('password')
+            
+            if not password:
+                return Response({
+                    'error': 'Password is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Custom password validation
+            validation_result = {
+                'is_valid': True,
+                'errors': [],
+                'strength': 'weak',
+                'score': 0
+            }
+            
+            # Check length
+            if len(password) < 8:
+                validation_result['errors'].append('Password must be at least 8 characters long')
+                validation_result['is_valid'] = False
+            
+            # Check for uppercase
+            if not re.search(r'[A-Z]', password):
+                validation_result['errors'].append('Password must contain at least one uppercase letter')
+                validation_result['is_valid'] = False
+            
+            # Check for lowercase
+            if not re.search(r'[a-z]', password):
+                validation_result['errors'].append('Password must contain at least one lowercase letter')
+                validation_result['is_valid'] = False
+            
+            # Check for numbers
+            if not re.search(r'\d', password):
+                validation_result['errors'].append('Password must contain at least one number')
+                validation_result['is_valid'] = False
+            
+            # Check for special characters
+            if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+                validation_result['errors'].append('Password must contain at least one special character')
+                validation_result['is_valid'] = False
+            
+            # Calculate strength score
+            score = 0
+            if len(password) >= 8:
+                score += 1
+            if re.search(r'[A-Z]', password):
+                score += 1
+            if re.search(r'[a-z]', password):
+                score += 1
+            if re.search(r'\d', password):
+                score += 1
+            if re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+                score += 1
+            if len(password) >= 12:
+                score += 1
+            
+            validation_result['score'] = score
+            
+            # Determine strength level
+            if score >= 5:
+                validation_result['strength'] = 'strong'
+            elif score >= 3:
+                validation_result['strength'] = 'medium'
+            else:
+                validation_result['strength'] = 'weak'
+            
+            return Response(validation_result, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error validating password: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserProfileView(APIView):
+    """Get and update user profile information"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            user = request.user
+            profile = user.userprofile
+            
+            return Response({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'role': profile.role,
+                'school_name': profile.school_name,
+                'sector': profile.sector,
+                'emis': profile.emis,
+                'date_joined': user.date_joined,
+                'last_login': user.last_login
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error fetching user profile: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def put(self, request):
+        try:
+            user = request.user
+            
+            # Update basic user information
+            if 'first_name' in request.data:
+                user.first_name = request.data['first_name']
+            if 'last_name' in request.data:
+                user.last_name = request.data['last_name']
+            if 'email' in request.data:
+                user.email = request.data['email']
+            
+            user.save()
+            
+            return Response({
+                'message': 'Profile updated successfully'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error updating profile: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserLoginTimestampView(APIView):
+    """Get user login timestamp data with filtering and CSV export"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            # Check if user is admin/superuser
+            if not request.user.is_superuser:
+                return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+            
+            # Get query parameters for filtering
+            username = request.GET.get('username', '')
+            date_from = request.GET.get('date_from', '')
+            date_to = request.GET.get('date_to', '')
+            user_id = request.GET.get('user_id', '')
+            export_csv = request.GET.get('export_csv', 'false').lower() == 'true'
+            
+            # Base queryset
+            queryset = UserLoginTimestamp.objects.all()
+            
+            # Apply filters
+            if username:
+                queryset = queryset.filter(username__icontains=username)
+            
+            if user_id:
+                queryset = queryset.filter(user_id=user_id)
+            
+            if date_from:
+                queryset = queryset.filter(date__gte=date_from)
+            
+            if date_to:
+                queryset = queryset.filter(date__lte=date_to)
+            
+            # Order by most recent first
+            queryset = queryset.order_by('-created_at')
+            
+            # Get pagination parameters
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 50))
+            
+            # Calculate pagination
+            total_count = queryset.count()
+            total_pages = (total_count + page_size - 1) // page_size
+            start_index = (page - 1) * page_size
+            end_index = start_index + page_size
+            
+            # Get paginated data
+            paginated_data = queryset[start_index:end_index]
+            
+            # Serialize data
+            serializer = UserLoginTimestampSerializer(paginated_data, many=True)
+            
+            # Prepare response
+            response_data = {
+                'data': serializer.data,
+                'pagination': {
+                    'current_page': page,
+                    'total_pages': total_pages,
+                    'total_count': total_count,
+                    'page_size': page_size,
+                    'has_next': page < total_pages,
+                    'has_previous': page > 1
+                },
+                'filters': {
+                    'username': username,
+                    'user_id': user_id,
+                    'date_from': date_from,
+                    'date_to': date_to
+                }
+            }
+            
+            # Handle CSV export
+            if export_csv:
+                import csv
+                from django.http import HttpResponse
+                from io import StringIO
+                
+                # Create CSV response
+                response = HttpResponse(content_type='text/csv')
+                response['Content-Disposition'] = f'attachment; filename="login_timestamps_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+                
+                # Write CSV data
+                writer = csv.writer(response)
+                writer.writerow(['User ID', 'Username', 'Date', 'Time', 'Created At'])
+                
+                for record in queryset:
+                    writer.writerow([
+                        record.user_id,
+                        record.username,
+                        record.date,
+                        record.time,
+                        record.created_at
+                    ])
+                
+                return response
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'error': f'Error fetching login timestamp data: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

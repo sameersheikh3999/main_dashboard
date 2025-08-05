@@ -31,8 +31,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem 2rem;
-  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   position: sticky;
@@ -1315,7 +1315,971 @@
   }
 
   .tab {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.8rem;
+  }
+}
+
+/* Table Header and Export Button Styles */
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.dark .tableHeader {
+  background: rgba(30, 41, 59, 0.3);
+}
+
+.tableHeader h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.dark .tableHeader h3 {
+  color: #e2e8f0;
+}
+
+.tableActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.exportButton {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.exportButton:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.dark .exportButton {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.dark .exportButton:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.4);
+}
+
+/* Login Timestamps Section Styles */
+.loginTimestampsSection {
+  position: relative;
+  margin: 3rem 0;
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98));
+  border: 3px solid #3b82f6;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  border-radius: 20px;
+  overflow-y: auto;
+  backdrop-filter: blur(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Add visual separation */
+  position: relative;
+  isolation: isolate;
+}
+
+.loginTimestampsSection::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8, #1e40af);
+  border-radius: 22px;
+  z-index: -1;
+  opacity: 0.1;
+}
+
+.loginTimestampsSection::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8, #1e40af, #3b82f6);
+  border-radius: 20px 20px 0 0;
+  z-index: 1;
+}
+
+.dark .loginTimestampsSection {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.98));
+  border: 3px solid #60a5fa;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.dark .loginTimestampsSection::before {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6, #1d4ed8);
+  opacity: 0.15;
+}
+
+.dark .loginTimestampsSection::after {
+  background: linear-gradient(90deg, #60a5fa, #3b82f6, #1d4ed8, #60a5fa);
+}
+
+.loginTimestampsSection:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.dark .loginTimestampsSection:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Section Divider and Enhanced Separation */
+.loginTimestampsSection {
+  position: relative;
+  z-index: 10;
+  margin-top: 4rem;
+  margin-bottom: 3rem;
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.98));
+}
+
+.dark .loginTimestampsSection {
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(96, 165, 250, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(96, 165, 250, 0.1) 0%, transparent 50%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.98));
+}
+
+/* Section divider line */
+.loginTimestampsSection::before {
+  content: '';
+  position: absolute;
+  top: -2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.4), transparent);
+  border-radius: 1px;
+  z-index: 1;
+}
+
+.dark .loginTimestampsSection::before {
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.5), transparent);
+}
+
+/* Enhanced Section Header */
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex: 1;
+}
+
+.titleIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 12px;
+  color: white;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  flex-shrink: 0;
+}
+
+.dark .titleIcon {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+}
+
+.titleContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.titleContent h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.dark .titleContent h2 {
+  color: #e2e8f0;
+}
+
+.titleContent p {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.dark .titleContent p {
+  color: #94a3b8;
+}
+
+.statsBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.dark .statsBadge {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.badgeCount {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.badgeLabel {
+  font-weight: 500;
+}
+
+/* Enhanced Section Actions */
+.sectionActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.actionGroup {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.exportButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  white-space: nowrap;
+}
+
+.exportButton:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+}
+
+.dark .exportButton {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.dark .exportButton:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5);
+}
+
+.toggleButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(107, 114, 128, 0.3);
+}
+
+.toggleButton:hover {
+  background: linear-gradient(135deg, #4b5563, #374151);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(107, 114, 128, 0.4);
+}
+
+.dark .toggleButton {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  box-shadow: 0 2px 8px rgba(107, 114, 128, 0.4);
+}
+
+.dark .toggleButton:hover {
+  background: linear-gradient(135deg, #4b5563, #374151);
+  box-shadow: 0 4px 16px rgba(107, 114, 128, 0.5);
+}
+
+/* Enhanced Content Area */
+.loginTimestampsContent {
+  margin-bottom: 1rem;
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  gap: 1rem;
+}
+
+.loadingContainer .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(59, 130, 246, 0.2);
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loadingContainer p {
+  margin: 0;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.dark .loadingContainer p {
+  color: #94a3b8;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  gap: 1rem;
+}
+
+.emptyIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+  border-radius: 16px;
+  color: #6b7280;
+  font-size: 2rem;
+}
+
+.dark .emptyIcon {
+  background: linear-gradient(135deg, #374151, #4b5563);
+  color: #9ca3af;
+}
+
+.emptyState h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.dark .emptyState h3 {
+  color: #e5e7eb;
+}
+
+.emptyState p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.dark .emptyState p {
+  color: #9ca3af;
+}
+
+/* Enhanced Table Container */
+.tableContainer {
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dark .tableContainer {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  max-height: 300px;
+}
+
+.loginTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  min-width: 600px;
+}
+
+.loginTable th {
+  position: sticky;
+  top: 0;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+  backdrop-filter: blur(10px);
+  padding: 1rem 1.25rem;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e2e8f0;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dark .loginTable th {
+  background: linear-gradient(135deg, #1e293b, #334155);
+  color: #e2e8f0;
+  border-bottom: 2px solid #475569;
+}
+
+.loginTable td {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.dark .loginTable td {
+  border-bottom: 1px solid #334155;
+}
+
+.tableRow {
+  transition: all 0.2s ease;
+}
+
+.tableRow:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.dark .tableRow:hover {
+  background: rgba(96, 165, 250, 0.1);
+}
+
+/* Enhanced Cell Styles */
+.userIdCell {
+  width: 80px;
+}
+
+.userIdBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 24px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0 0.5rem;
+}
+
+.usernameCell {
+  width: 120px;
+}
+
+.usernameText {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.dark .usernameText {
+  color: #e2e8f0;
+}
+
+.dateCell {
+  width: 100px;
+}
+
+.dateBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.75rem;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.timeCell {
+  width: 100px;
+}
+
+.timeText {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.dark .timeText {
+  color: #9ca3af;
+}
+
+.createdCell {
+  width: 150px;
+}
+
+.createdText {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.dark .createdText {
+  color: #94a3b8;
+}
+
+/* Enhanced Load More Section */
+.loadMoreSection {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.loadMoreButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.loadMoreButton:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+}
+
+.dark .loadMoreButton {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.dark .loadMoreButton:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.5);
+} 
+
+/* Responsive Design for Login Timestamps */
+@media (max-width: 1024px) {
+  .loginTimestampsSection {
+    padding: 1.25rem;
+    margin: 1.5rem 0;
+  }
+  
+  .sectionHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .sectionTitle {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  
+  .titleIcon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.25rem;
+  }
+  
+  .titleContent h2 {
+    font-size: 1.25rem;
+  }
+  
+  .sectionActions {
+    justify-content: center;
+  }
+  
+  .actionGroup {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .exportButton {
+    flex: 1;
+    max-width: 200px;
+  }
+  
+  .loginTable {
+    min-width: 500px;
+  }
+}
+
+@media (max-width: 768px) {
+  .loginTimestampsSection {
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 16px;
+  }
+  
+  .titleContent h2 {
+    font-size: 1.125rem;
+  }
+  
+  .titleContent p {
+    font-size: 0.8rem;
+  }
+  
+  .statsBadge {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  
+  .badgeCount {
+    font-size: 1rem;
+  }
+  
+  .exportButton {
+    padding: 0.625rem 1rem;
+    font-size: 0.8rem;
+  }
+  
+  .toggleButton {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+  }
+  
+  .loginTable {
+    min-width: 400px;
+    font-size: 0.8rem;
+  }
+  
+  .loginTable th,
+  .loginTable td {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .userIdBadge {
+    min-width: 28px;
+    height: 20px;
+    font-size: 0.7rem;
+    padding: 0 0.375rem;
+  }
+  
+  .dateBadge {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.65rem;
+  }
+  
+  .timeText {
+    font-size: 0.75rem;
+  }
+  
+  .createdText {
+    font-size: 0.75rem;
+  }
+  
+  .loadMoreButton {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .loginTimestampsSection {
+    padding: 0.75rem;
+    margin: 0.75rem 0;
+    border-radius: 12px;
+  }
+  
+  .titleContent h2 {
+    font-size: 1rem;
+  }
+  
+  .titleContent p {
+    font-size: 0.75rem;
+  }
+  
+  .statsBadge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    gap: 0.25rem;
+  }
+  
+  .badgeCount {
+    font-size: 0.9rem;
+  }
+  
+  .badgeLabel {
+    font-size: 0.7rem;
+  }
+  
+  .actionGroup {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .exportButton {
+    max-width: none;
+    width: 100%;
+  }
+  
+  .loginTable {
+    min-width: 350px;
+    font-size: 0.75rem;
+  }
+  
+  .loginTable th,
+  .loginTable td {
+    padding: 0.5rem 0.375rem;
+  }
+  
+  .userIdCell {
+    width: 60px;
+  }
+  
+  .usernameCell {
+    width: 80px;
+  }
+  
+  .dateCell {
+    width: 80px;
+  }
+  
+  .timeCell {
+    width: 80px;
+  }
+  
+  .createdCell {
+    width: 120px;
+  }
+  
+  .userIdBadge {
+    min-width: 24px;
+    height: 18px;
+    font-size: 0.65rem;
+    padding: 0 0.25rem;
+  }
+  
+  .dateBadge {
+    padding: 0.125rem 0.375rem;
+    font-size: 0.65rem;
+  }
+  
+  .timeText {
+    font-size: 0.7rem;
+  }
+  
+  .createdText {
+    font-size: 0.7rem;
+  }
+  
+  .loadMoreButton {
     padding: 0.5rem 1rem;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
+  }
+  
+  .emptyState {
+    padding: 2rem 1rem;
+  }
+  
+  .emptyIcon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.5rem;
+  }
+  
+  .emptyState h3 {
+    font-size: 1rem;
+  }
+  
+  .emptyState p {
+    font-size: 0.8rem;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-height: 600px) and (orientation: landscape) {
+  .loginTimestampsSection {
+    margin: 1rem 0;
+    padding: 1rem;
+  }
+  
+  .sectionHeader {
+    margin-bottom: 1rem;
+  }
+  
+  .titleContent h2 {
+    font-size: 1.125rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .titleContent p {
+    margin-bottom: 0.5rem;
+  }
+  
+  .tableWrapper {
+    max-height: 200px;
+  }
+  
+  .loadMoreSection {
+    margin-top: 1rem;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .loginTimestampsSection {
+    backdrop-filter: blur(30px);
+  }
+  
+  .tableContainer {
+    backdrop-filter: blur(15px);
+  }
+} 
+
+/* Section Divider Styles */
+.sectionDivider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 3rem 0 2rem 0;
+  gap: 1.5rem;
+}
+
+.dividerLine {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+  border-radius: 1px;
+  max-width: 200px;
+}
+
+.dark .dividerLine {
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.4), transparent);
+}
+
+.dividerTitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(29, 78, 216, 0.1));
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 25px;
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+}
+
+.dark .dividerTitle {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.15), rgba(59, 130, 246, 0.15));
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.dividerTitle span {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #3b82f6;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dark .dividerTitle span {
+  color: #60a5fa;
+}
+
+/* Responsive Section Divider */
+@media (max-width: 768px) {
+  .sectionDivider {
+    margin: 2rem 0 1.5rem 0;
+    gap: 1rem;
+  }
+  
+  .dividerLine {
+    max-width: 100px;
+  }
+  
+  .dividerTitle {
+    padding: 0.5rem 1rem;
+  }
+  
+  .dividerTitle span {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .sectionDivider {
+    margin: 1.5rem 0 1rem 0;
+    gap: 0.75rem;
+  }
+  
+  .dividerLine {
+    max-width: 60px;
+  }
+  
+  .dividerTitle {
+    padding: 0.375rem 0.75rem;
+  }
+  
+  .dividerTitle span {
+    font-size: 0.75rem;
   }
 } 

@@ -48,6 +48,7 @@ urlpatterns = [
     # Admin dashboard endpoints
     path('admin/dashboard/', views.AdminDashboardView.as_view(), name='admin-dashboard'),
     path('admin/data/<str:data_type>/', views.AdminDetailedDataView.as_view(), name='admin-detailed-data'),
+    path('admin/login-timestamps/', views.UserLoginTimestampView.as_view(), name='admin-login-timestamps'),
     # Admin messaging endpoint
     path('admin/messages/', views.AdminMessageCreateView.as_view(), name='admin-messages'),
     # Lesson plan usage distribution
@@ -57,4 +58,11 @@ urlpatterns = [
     path('lp-data/sectors/', views.SectorLPDataView.as_view(), name='sector-lp-data'),
     path('lp-data/teachers/', views.TeacherLPDataView.as_view(), name='teacher-lp-data'),
     path('lp-data/summary/', views.LPDataSummaryView.as_view(), name='lp-data-summary'),
+    # Password management endpoints
+    path('auth/password/change/', views.PasswordChangeView.as_view(), name='password-change'),
+    path('auth/password/reset/request/', views.PasswordResetRequestView.as_view(), name='password-reset-request'),
+    path('auth/password/reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    path('auth/password/validate/', views.PasswordValidationView.as_view(), name='password-validation'),
+    # User profile management
+    path('auth/profile/', views.UserProfileView.as_view(), name='user-profile'),
 ]

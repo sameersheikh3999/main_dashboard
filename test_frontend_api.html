@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Timestamps API Test</title>
+</head>
+<body>
+    <h1>Login Timestamps API Test</h1>
+    <button onclick="testAPI()">Test API</button>
+    <div id="result"></div>
+
+    <script>
+        async function testAPI() {
+            try {
+                // First login to get token
+                const loginResponse = await fetch('http://localhost:8000/api/auth/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'pass123'
+                    })
+                });
+
+                if (!loginResponse.ok) {
+                    throw new Error('Login failed');
+                }
+
+                const loginData = await loginResponse.json();
+                const token = loginData.token;
+
+                console.log('Login successful, token:', token);
+
+                // Now test the login timestamps API
+                const timestampsResponse = await fetch('http://localhost:8000/api/admin/login-timestamps/', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (!timestampsResponse.ok) {
+                    throw new Error('Timestamps API failed');
+                }
+
+                const timestampsData = await timestampsResponse.json();
+                console.log('Timestamps data:', timestampsData);
+
+                document.getElementById('result').innerHTML = `
+                    <h3>Success!</h3>
+                    <p>Total records: ${timestampsData.pagination.total_count}</p>
+                    <pre>${JSON.stringify(timestampsData, null, 2)}</pre>
+                `;
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>Error!</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -28,7 +28,13 @@
   flex-direction: column;
   gap: 16px;
   margin-bottom: 32px;
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  transition: all 0.3s ease;
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .topBar {
@@ -908,12 +914,14 @@
 
 /* Schools Table */
 .schoolsTable {
-  max-height: 600px;
+  max-height: 350px;
   overflow-y: auto;
   border-radius: 12px;
   padding: 8px;
   scroll-behavior: smooth;
   position: relative;
+  background: inherit;
+  overflow-x: hidden;
 }
 
 .schoolsTable::-webkit-scrollbar {
@@ -953,6 +961,7 @@
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid;
+  position: relative;
 }
 
 .schoolsTableElement.light {
@@ -967,6 +976,14 @@
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }
 
+.schoolsTableElement thead {
+  position: fixed;
+  top: auto;
+  width: 100%;
+  z-index: 1000;
+  background: inherit;
+}
+
 .tableHeader {
   background: rgba(248, 250, 252, 0.95);
   color: #475569;
@@ -979,9 +996,10 @@
   border-bottom: 1px solid #e2e8f0;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 1000;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .tableHeader.dark {
@@ -995,7 +1013,8 @@
   font-weight: 600;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 1000;
+  background: inherit;
 }
 
 .tableHeader.light th {

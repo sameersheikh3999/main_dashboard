@@ -7,9 +7,30 @@ class UserProfile(models.Model):
     school_name = models.CharField(max_length=128, null=True, blank=True)
     sector = models.CharField(max_length=100, null=True, blank=True)
     emis = models.CharField(max_length=50, null=True, blank=True)
+    reset_token = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username} ({self.role})"
+
+class UserLoginTimestamp(models.Model):
+    """Model to track user login timestamps"""
+    user_id = models.IntegerField()
+    username = models.CharField(max_length=150)
+    date = models.DateField(auto_now_add=True)
+    time = models.TimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user_id']),
+            models.Index(fields=['username']),
+            models.Index(fields=['date']),
+            models.Index(fields=['created_at']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.username} - {self.date} {self.time}"
 
 class Conversation(models.Model):
     id = models.CharField(primary_key=True, max_length=64)  # UUID

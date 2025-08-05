@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import styled, { createGlobalStyle } from 'styled-components';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line
 } from 'recharts';
@@ -11,6 +12,7 @@ import FDEDashboard from './components/FDEDashboard';
 import AEODashboard from './components/AEODashboard';
 import AdminDashboard from './components/AdminDashboard';
 import Register from './components/Register';
+import PasswordManagement from './components/PasswordManagement';
 import { isAuthenticated, getCurrentUser, logout, apiService } from './services/api';
 
 // Global Styles
@@ -312,7 +314,7 @@ const recentTeacherActivity = [
 ];
 
 // Components
-function App() {
+function MainDashboard({ user, onLogout }) {
   const [dashboard, setDashboard] = useState('AEO');
   const [view, setView] = useState('overview');
   const [currentView, setCurrentView] = useState('dashboard');
@@ -331,9 +333,6 @@ function App() {
     schoolName: '',
     schoolData: null
   });
-  const [user, setUser] = useState(null);
-  const [authenticated, setAuthenticated] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
   
   // Add filter state variables
   const [filters, setFilters] = useState({
@@ -342,21 +341,6 @@ function App() {
   });
 
   useEffect(() => {
-    // Check authentication status
-    const checkAuth = () => {
-      console.log('Checking authentication status...');
-      if (isAuthenticated()) {
-        const currentUser = getCurrentUser();
-        console.log('User is authenticated:', currentUser?.username);
-        setUser(currentUser);
-        setAuthenticated(true);
-      } else {
-        console.log('User is not authenticated');
-      }
-    };
-    
-    checkAuth();
-    
     Papa.parse(process.env.PUBLIC_URL + '/teach_tool_scores.csv', {
       download: true,
       header: true,
@@ -369,17 +353,17 @@ function App() {
 
   // Load BigQuery data when user is authenticated
   useEffect(() => {
-    if (authenticated && user) {
+    if (user) {
       console.log('User authenticated, loading BigQuery data...', { user: user.username, role: user.profile?.role });
       loadBigQueryData();
     } else {
-      console.log('User not authenticated yet', { authenticated, user: user?.username });
+      console.log('User not authenticated yet', { user: user?.username });
     }
-  }, [authenticated, user]);
+  }, [user]);
 
   // Reload data when filters change
   useEffect(() => {
-    if (authenticated && user) {
+    if (user) {
       loadBigQueryData();
     }
   }, [filters]);
@@ -436,8 +420,7 @@ function App() {
         console.log('Authentication failed, clearing token...');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        setAuthenticated(false);
-        setUser(null);
+        window.location.href = '/';
       }
     } finally {
       setBigQueryLoading(false);
@@ -676,99 +659,8 @@ function App() {
     console.log('Message sent successfully');
   };
 
-  // Handler for successful login
-  const handleLogin = (userData) => {
-    console.log('Login successful, user data:', userData);
-    setUser(userData);
-    setAuthenticated(true);
-  };
-
-  // Handler for successful registration
-  const handleRegister = (userData) => {
-    setUser(userData);
-    setAuthenticated(true);
-    setShowRegister(false);
-  };
-
-  // Handler for logout
-  const handleLogout = () => {
-    logout();
-    setUser(null);
-    setAuthenticated(false);
-  };
-
   // Loading state
   if (loading) return <div style={{ padding: 40 }}>Loading dashboard data...</div>;
-
-  // Show login if not authenticated
-  if (!authenticated) {
-    return (
-      <div>
-        {showRegister ? (
-          <Register onRegister={handleRegister} />
-        ) : (
-          <Login onLogin={handleLogin} />
-        )}
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          {showRegister ? (
-            <button
-              onClick={() => setShowRegister(false)}
-              style={{
-                color: '#0a58ca',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              Already have an account? Login
-            </button>
-          ) : (
-            <button
-              onClick={() => setShowRegister(true)}
-              style={{
-                color: '#0a58ca',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              Don't have an account? Register
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Show Principal Dashboard if user is a Principal
-  if (user && user.profile?.role === 'Principal') {
-    console.log('Principal user detected, showing PrincipalDashboard');
-    return <PrincipalDashboard onLogout={handleLogout} />;
-  }
-
-  // Show FDE Dashboard if user is FDE
-  if (user && user.profile?.role === 'FDE') {
-    console.log('FDE user detected, showing FDEDashboard');
-    return <FDEDashboard onLogout={handleLogout} />;
-  }
-
-  // Show AEO Dashboard if user is AEO
-  if (user && user.profile?.role === 'AEO') {
-    console.log('AEO user detected, showing AEODashboard');
-    return <AEODashboard onLogout={handleLogout} />;
-  }
-
-  // Show Admin Dashboard if user is admin/superuser
-  if (user && (user.is_superuser || user.is_staff)) {
-    console.log('Admin user detected, showing AdminDashboard');
-    return <AdminDashboard onLogout={handleLogout} />;
-  }
-
-  // Fallback - show default dashboard for users without specific roles
-  console.log('No specific role detected, user data:', user);
-  console.log('User profile:', user?.profile);
-  console.log('User is_superuser:', user?.is_superuser);
-  console.log('User is_staff:', user?.is_staff);
 
   return (
     <>
@@ -795,7 +687,7 @@ function App() {
                     Logged in as: {user.username} ({user.profile?.role})
                     {user.profile?.role === 'Principal' && ` - ${user.profile?.school_name}`}
                   </div>
-                  <LogoutBtn onClick={handleLogout}>Logout</LogoutBtn>
+                  <LogoutBtn onClick={onLogout}>Logout</LogoutBtn>
                 </>
               )}
             </NavButtons>
@@ -1291,6 +1183,121 @@ function App() {
         />
       </Container>
     </>
+  );
+}
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+
+  useEffect(() => {
+    // Check authentication status
+    const checkAuth = () => {
+      console.log('Checking authentication status...');
+      if (isAuthenticated()) {
+        const currentUser = getCurrentUser();
+        console.log('User is authenticated:', currentUser?.username);
+        setUser(currentUser);
+        setAuthenticated(true);
+      } else {
+        console.log('User is not authenticated');
+      }
+    };
+    
+    checkAuth();
+  }, []);
+
+  // Handler for successful login
+  const handleLogin = (userData) => {
+    console.log('Login successful, user data:', userData);
+    setUser(userData);
+    setAuthenticated(true);
+  };
+
+  // Handler for successful registration
+  const handleRegister = (userData) => {
+    setUser(userData);
+    setAuthenticated(true);
+    setShowRegister(false);
+  };
+
+  // Handler for logout
+  const handleLogout = () => {
+    logout();
+    setUser(null);
+    setAuthenticated(false);
+  };
+
+  // Show login if not authenticated
+  if (!authenticated) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/password-management" element={<PasswordManagement />} />
+          <Route path="/" element={
+            <div>
+              {showRegister ? (
+                <Register onRegister={handleRegister} />
+              ) : (
+                <Login onLogin={handleLogin} />
+              )}
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                {showRegister ? (
+                  <button
+                    onClick={() => setShowRegister(false)}
+                    style={{
+                      color: '#0a58ca',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Already have an account? Login
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowRegister(true)}
+                    style={{
+                      color: '#0a58ca',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Don't have an account? Register
+                  </button>
+                )}
+              </div>
+            </div>
+          } />
+        </Routes>
+      </Router>
+    );
+  }
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/password-management" element={<PasswordManagement />} />
+        <Route path="/" element={
+          <>
+            {/* Show Principal Dashboard if user is a Principal */}
+            {user && user.profile?.role === 'Principal' ? (
+              <PrincipalDashboard onLogout={handleLogout} />
+            ) : user && user.profile?.role === 'FDE' ? (
+              <FDEDashboard onLogout={handleLogout} />
+            ) : user && user.profile?.role === 'AEO' ? (
+              <AEODashboard onLogout={handleLogout} />
+            ) : user && (user.is_superuser || user.is_staff) ? (
+              <AdminDashboard onLogout={handleLogout} />
+            ) : (
+              <MainDashboard user={user} onLogout={handleLogout} />
+            )}
+          </>
+        } />
+      </Routes>
+    </Router>
   );
 }
 

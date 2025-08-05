@@ -15,6 +15,7 @@ import styles from './PrincipalDashboard.module.css';
 import MessagingSidebar from './MessagingSidebar';
 import TeacherObservations from './TeacherObservations';
 import SchoolInfrastructure from './SchoolInfrastructure';
+import PasswordChangeModal from './PasswordChangeModal';
 import {
   IoBarChartOutline,
   IoStatsChartOutline,
@@ -70,6 +71,7 @@ const PrincipalDashboard = ({ onLogout }) => {
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [sortBy, setSortBy] = useState('lp_ratio');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [passwordChangeModalOpen, setPasswordChangeModalOpen] = useState(false);
 
   // Apply theme to body
   useEffect(() => {
@@ -330,6 +332,25 @@ const PrincipalDashboard = ({ onLogout }) => {
                   Light
                 </>
               )}
+            </button>
+            <button 
+              className={styles.logoutBtn} 
+              onClick={() => setPasswordChangeModalOpen(true)}
+              style={{ 
+                marginRight: '10px',
+                border: 'none',
+                color: 'white',
+                fontWeight: 'bold',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                transition: 'background-color 0.3s ease',
+                background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                color: '#475569',
+                border: '1px solid #cbd5e1'
+              }}
+            >
+              Change Password
             </button>
             <button className={styles.logoutBtn} onClick={onLogout}>
               <IoLogOutOutline style={{ marginRight: '8px', fontSize: '18px' }} />
@@ -717,6 +738,13 @@ const PrincipalDashboard = ({ onLogout }) => {
         onClose={() => setMessagingSidebarOpen(false)}
         theme="light"
         onMessagesRead={loadUnreadMessageCount}
+      />
+
+      {/* Password Change Modal */}
+      <PasswordChangeModal
+        isOpen={passwordChangeModalOpen}
+        onClose={() => setPasswordChangeModalOpen(false)}
+        currentUser={user}
       />
     </div>
   );

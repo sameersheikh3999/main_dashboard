@@ -101,30 +101,23 @@ const ErrorMessage = styled.div`
   margin-top: 10px;
 `;
 
-const DemoCredentials = styled.div`
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 16px;
-  margin-top: 20px;
+const ForgotPasswordLink = styled.a`
+  color: #0a58ca;
+  text-decoration: none;
   font-size: 0.9rem;
-  color: #6c757d;
-`;
-
-const DemoTitle = styled.div`
-  font-weight: 600;
-  margin-bottom: 8px;
-  color: #212529;
-`;
-
-const DemoItem = styled.div`
-  margin-bottom: 4px;
+  margin-top: 10px;
+  display: block;
+  text-align: center;
+  
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 function Login({ onLogin }) {
   const [formData, setFormData] = useState({
     username: '',
-    password: '',
-    role: 'AEO'
+    password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -157,41 +150,25 @@ function Login({ onLogin }) {
     });
   };
 
+  const handleForgotPassword = () => {
+    // Navigate to password management page
+    window.location.href = '/password-management';
+  };
+
   return (
     <LoginContainer>
       <LoginCard>
-        <Title>AEO Dashboard Login</Title>
+        <Title>Dashboard Login</Title>
         <Form onSubmit={handleSubmit}>
           <FormGroup>
-            <Label htmlFor="role">Role</Label>
-            <Select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-            >
-              <option value="AEO">AEO</option>
-              <option value="FDE">FDE</option>
-              <option value="Principal">Principal</option>
-            </Select>
-          </FormGroup>
-          
-          <FormGroup>
-            <Label htmlFor="username">
-              {formData.role === 'Principal' ? 'EMIS Number' : 'Username'}
-            </Label>
+            <Label htmlFor="username">Username</Label>
             <Input
               type="text"
               id="username"
               name="username"
               value={formData.username}
               onChange={handleChange}
-              placeholder={
-                formData.role === 'AEO' ? 'aeo' : 
-                formData.role === 'FDE' ? 'fde' : 
-                formData.role === 'Principal' ? '547 (EMIS number)' : 
-                'principal_school_name'
-              }
+              placeholder="Enter username"
               required
             />
           </FormGroup>
@@ -204,10 +181,7 @@ function Login({ onLogin }) {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder={
-                formData.role === 'Principal' ? 'pass123 (default password)' : 
-                'Enter password'
-              }
+              placeholder="Enter password"
               required
             />
           </FormGroup>
@@ -219,14 +193,9 @@ function Login({ onLogin }) {
         
         {error && <ErrorMessage>{error}</ErrorMessage>}
         
-        <DemoCredentials>
-          <DemoTitle>Demo Credentials:</DemoTitle>
-          <DemoItem><strong>AEO:</strong> username: aeo, password: aeo123</DemoItem>
-          <DemoItem><strong>FDE:</strong> username: fde, password: fde123</DemoItem>
-          <DemoItem><strong>Principal (EMIS):</strong> EMIS: 547, password: pass123 (IMCB Mohra Nagial)</DemoItem>
-          <DemoItem><strong>Principal (Username):</strong> username: principal_al_noor_elementary, password: principal123</DemoItem>
-          <DemoItem><strong>Note:</strong> Principals can login using their EMIS number or username</DemoItem>
-        </DemoCredentials>
+        <ForgotPasswordLink onClick={handleForgotPassword}>
+          Forgot Password?
+        </ForgotPasswordLink>
       </LoginCard>
     </LoginContainer>
   );

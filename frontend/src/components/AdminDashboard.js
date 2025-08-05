@@ -6,6 +6,7 @@ import { apiService } from '../services/api';
 import styles from './AdminDashboard.module.css';
 import AdminMessagingModal from './AdminMessagingModal';
 import MessagingSidebar from './MessagingSidebar';
+import PasswordChangeModal from './PasswordChangeModal';
 import { 
   IoBarChartOutline, 
   IoMoonOutline, 
@@ -68,6 +69,9 @@ const AdminDashboard = ({ onLogout }) => {
   const [showMessagingModal, setShowMessagingModal] = useState(false);
   const [messagingSidebarOpen, setMessagingSidebarOpen] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [passwordChangeModalOpen, setPasswordChangeModalOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [showLoginTimestamps, setShowLoginTimestamps] = useState(true);
 
   // Apply theme to body
   useEffect(() => {
@@ -78,6 +82,9 @@ const AdminDashboard = ({ onLogout }) => {
 
   useEffect(() => {
     loadDashboardData();
+    // Get current user info
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    setUser(currentUser);
   }, [filters]);
 
 
@@ -162,11 +169,22 @@ const AdminDashboard = ({ onLogout }) => {
   const loadDetailedData = async (dataType) => {
     setDetailedLoading(true);
     try {
-      const data = await apiService.getAdminDetailedData(dataType, {
-        ...filters,
-        page: currentPage,
-        page_size: pageSize
-      });
+      let data;
+      if (dataType === 'login_timestamps') {
+        console.log('Loading login timestamps data...');
+        data = await apiService.getLoginTimestamps({
+          ...filters,
+          page: currentPage,
+          page_size: pageSize
+        });
+        console.log('Login timestamps data loaded:', data);
+      } else {
+        data = await apiService.getAdminDetailedData(dataType, {
+          ...filters,
+          page: currentPage,
+          page_size: pageSize
+        });
+      }
       setDetailedData(prev => ({ ...prev, [dataType]: data }));
     } catch (error) {
       console.error(`Error loading ${dataType} data:`, error);
@@ -230,6 +248,37 @@ const AdminDashboard = ({ onLogout }) => {
   const handleSortChange = (sortBy) => {
     const newSortOrder = filters.sort_by === sortBy && filters.sort_order === 'asc' ? 'desc' : 'asc';
     setFilters(prev => ({ ...prev, sort_by: sortBy, sort_order: newSortOrder }));
+  };
+
+  const handleCSVExport = async () => {
+    try {
+      const params = new URLSearchParams({
+        ...filters,
+        export_csv: 'true'
+      });
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/admin/login-timestamps/?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `login_timestamps_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Failed to export CSV');
+      }
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+    }
   };
 
   const toggleTheme = () => {
@@ -616,6 +665,125 @@ const AdminDashboard = ({ onLogout }) => {
             ))}
           </div>
         </div>
+
+        {/* Section Divider */}
+        <div className={styles.sectionDivider}>
+          <div className={styles.dividerLine}></div>
+          <div className={styles.dividerTitle}>
+            <span>User Activity Monitoring</span>
+          </div>
+          <div className={styles.dividerLine}></div>
+        </div>
+
+        {/* Login Timestamps Section */}
+        <div className={styles.loginTimestampsSection}>
+          <div className={styles.sectionHeader}>
+            <div className={styles.sectionTitle}>
+              <div className={styles.titleIcon}>
+                <IoTimeOutline />
+              </div>
+              <div className={styles.titleContent}>
+                <h2>User Login Activity Monitor</h2>
+                <p>Track and monitor all user login activities across the platform</p>
+                <div className={styles.statsBadge}>
+                  <span className={styles.badgeCount}>
+                    {detailedData.login_timestamps?.pagination?.total_count || 0}
+                  </span>
+                  <span className={styles.badgeLabel}>Total Logins</span>
+                </div>
+              </div>
+            </div>
+            <div className={styles.sectionActions}>
+              <div className={styles.actionGroup}>
+                <button 
+                  onClick={() => handleCSVExport()}
+                  className={styles.exportButton}
+                  title="Export to CSV"
+                >
+                  <IoDownloadOutline />
+                  <span>Export CSV</span>
+                </button>
+                <button 
+                  onClick={() => setShowLoginTimestamps(prev => !prev)}
+                  className={styles.toggleButton}
+                  title="Toggle Login Monitor"
+                >
+                  {showLoginTimestamps ? <IoEyeOffOutline /> : <IoEyeOutline />}
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {showLoginTimestamps && (
+            <div className={styles.loginTimestampsContent}>
+              {detailedLoading ? (
+                <div className={styles.loadingContainer}>
+                  <div className={styles.spinner}></div>
+                  <p>Loading login timestamps...</p>
+                </div>
+              ) : detailedData.login_timestamps ? (
+                <div className={styles.tableContainer}>
+                  <div className={styles.tableWrapper}>
+                    <table className={styles.loginTable}>
+                      <thead>
+                        <tr>
+                          <th className={styles.userIdCol}>User ID</th>
+                          <th className={styles.usernameCol}>Username</th>
+                          <th className={styles.dateCol}>Date</th>
+                          <th className={styles.timeCol}>Time</th>
+                          <th className={styles.createdCol}>Created At</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detailedData.login_timestamps.data?.slice(0, 10).map((record, index) => (
+                          <tr key={index} className={styles.tableRow}>
+                            <td className={styles.userIdCell}>
+                              <span className={styles.userIdBadge}>{record.user_id}</span>
+                            </td>
+                            <td className={styles.usernameCell}>
+                              <span className={styles.usernameText}>{record.username}</span>
+                            </td>
+                            <td className={styles.dateCell}>
+                              <span className={styles.dateBadge}>{record.date}</span>
+                            </td>
+                            <td className={styles.timeCell}>
+                              <span className={styles.timeText}>{record.time}</span>
+                            </td>
+                            <td className={styles.createdCell}>
+                              <span className={styles.createdText}>{formatDateTime(record.created_at)}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon}>
+                    <IoTimeOutline />
+                  </div>
+                  <h3>No Login Data Available</h3>
+                  <p>Login timestamps will appear here once users start logging in</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className={styles.loadMoreSection}>
+            <button 
+              onClick={() => {
+                if (!detailedData.login_timestamps) {
+                  loadDetailedData('login_timestamps');
+                }
+              }}
+              className={styles.loadMoreButton}
+            >
+              <IoRefreshOutline />
+              <span>Load Login Data</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -826,6 +994,8 @@ const AdminDashboard = ({ onLogout }) => {
               </table>
             )}
 
+
+
                          {/* Pagination */}
              {detailedData[activeTab]?.pagination && (
                <div className={styles.pagination}>
@@ -919,6 +1089,24 @@ const AdminDashboard = ({ onLogout }) => {
           </button>
           <button onClick={toggleTheme} className={styles.themeToggle}>
                             {theme === 'light' ? <IoMoonOutline /> : <IoSunnyOutline />}
+          </button>
+          <button 
+            onClick={() => setPasswordChangeModalOpen(true)}
+            style={{ 
+              marginRight: '10px',
+              border: 'none',
+              color: 'white',
+              fontWeight: 'bold',
+              padding: '8px 16px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              transition: 'background-color 0.3s ease',
+              background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+              color: '#475569',
+              border: '1px solid #cbd5e1'
+            }}
+          >
+            Change Password
           </button>
           <button onClick={onLogout} className={styles.logoutBtn}>
             <IoCloseCircleOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Logout
@@ -1064,6 +1252,13 @@ const AdminDashboard = ({ onLogout }) => {
         onClose={() => setMessagingSidebarOpen(false)}
         theme={theme}
         onMessagesRead={loadUnreadMessageCount}
+      />
+
+      {/* Password Change Modal */}
+      <PasswordChangeModal
+        isOpen={passwordChangeModalOpen}
+        onClose={() => setPasswordChangeModalOpen(false)}
+        currentUser={user}
       />
     </div>
   );
