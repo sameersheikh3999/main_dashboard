@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, CartesianGrid, AreaChart, Area
 } from 'recharts';
@@ -8,8 +8,8 @@ import AdminMessagingModal from './AdminMessagingModal';
 import MessagingSidebar from './MessagingSidebar';
 import PasswordChangeModal from './PasswordChangeModal';
 import { 
-  IoBarChartOutline, 
-  IoMoonOutline, 
+  IoBarChartOutline,
+  IoMoonOutline,
   IoSunnyOutline,
   IoStatsChartOutline,
   IoAnalyticsOutline,
@@ -18,29 +18,23 @@ import {
   IoBookOutline,
   IoCalendarOutline,
   IoFilterOutline,
-  IoSearchOutline,
-  IoRefreshOutline,
-  IoDownloadOutline,
-  IoPrintOutline,
-  IoShareOutline,
-  IoNotificationsOutline,
   IoMailOutline,
   IoChatbubblesOutline,
   IoPersonOutline,
-  IoCheckmarkCircleOutline,
+
   IoCloseCircleOutline,
-  IoWarningOutline,
   IoInformationCircleOutline,
   IoArrowUpOutline,
-  IoArrowDownOutline,
-  IoTrendingUpOutline,
-  IoTrendingDownOutline,
-  IoEyeOutline,
-  IoEyeOffOutline,
   IoGridOutline,
   IoListOutline,
   IoArrowBackOutline,
   IoCloseOutline,
+  IoNotificationsOutline,
+  IoEyeOutline,
+  IoEyeOffOutline,
+  IoTrendingUpOutline,
+  IoRefreshOutline,
+  IoDownloadOutline,
   IoTimeOutline
 } from 'react-icons/io5';
 
@@ -62,7 +56,7 @@ const AdminDashboard = ({ onLogout }) => {
   const [detailedData, setDetailedData] = useState({});
   const [detailedLoading, setDetailedLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize] = useState(50);
   const [selectedSector, setSelectedSector] = useState(null);
   const [selectedSchool, setSelectedSchool] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -80,27 +74,7 @@ const AdminDashboard = ({ onLogout }) => {
     document.body.style.transition = 'all 0.3s ease';
   }, [theme]);
 
-  useEffect(() => {
-    loadDashboardData();
-    // Get current user info
-    const currentUser = JSON.parse(localStorage.getItem('user'));
-    setUser(currentUser);
-  }, [filters]);
-
-
-
-  // Scroll effect for header
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      setIsScrolled(scrollTop > 10);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
       const data = await apiService.getAdminDashboard(filters);
@@ -160,24 +134,42 @@ const AdminDashboard = ({ onLogout }) => {
       
       setDashboardData(data);
     } catch (error) {
-      console.error('Error loading admin dashboard data:', error);
+      // Handle error silently
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    loadDashboardData();
+    // Get current user info
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    setUser(currentUser);
+  }, [filters, loadDashboardData]);
+
+
+
+  // Scroll effect for header
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      setIsScrolled(scrollTop > 10);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const loadDetailedData = async (dataType) => {
     setDetailedLoading(true);
     try {
       let data;
       if (dataType === 'login_timestamps') {
-        console.log('Loading login timestamps data...');
         data = await apiService.getLoginTimestamps({
           ...filters,
           page: currentPage,
           page_size: pageSize
         });
-        console.log('Login timestamps data loaded:', data);
       } else {
         data = await apiService.getAdminDetailedData(dataType, {
           ...filters,
@@ -187,7 +179,7 @@ const AdminDashboard = ({ onLogout }) => {
       }
       setDetailedData(prev => ({ ...prev, [dataType]: data }));
     } catch (error) {
-      console.error(`Error loading ${dataType} data:`, error);
+      // Handle error silently
     } finally {
       setDetailedLoading(false);
     }
@@ -202,17 +194,12 @@ const AdminDashboard = ({ onLogout }) => {
       setSelectedSector(data.sector);
       setSelectedSchool(null);
       // Filter data for the selected sector
-      const sectorData = dashboardData.school_stats?.filter(school => 
-        school.sector === data.sector
-      ) || [];
-      console.log(`Selected sector: ${data.sector}`, sectorData);
     }
   };
 
   const handleSchoolClick = (data) => {
     if (data && data.school) {
       setSelectedSchool(data.school);
-      console.log(`Selected school: ${data.school}`, data);
     }
   };
 
@@ -273,11 +260,9 @@ const AdminDashboard = ({ onLogout }) => {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-      } else {
-        console.error('Failed to export CSV');
       }
     } catch (error) {
-      console.error('Error exporting CSV:', error);
+      // Handle error silently
     }
   };
 
@@ -304,7 +289,7 @@ const AdminDashboard = ({ onLogout }) => {
       const count = await apiService.getUnreadMessageCount();
       setUnreadMessageCount(count.unread_count || 0);
     } catch (error) {
-      console.error('Failed to load unread message count:', error);
+      // Handle error silently
     }
   };
 
@@ -1094,8 +1079,6 @@ const AdminDashboard = ({ onLogout }) => {
             onClick={() => setPasswordChangeModalOpen(true)}
             style={{ 
               marginRight: '10px',
-              border: 'none',
-              color: 'white',
               fontWeight: 'bold',
               padding: '8px 16px',
               borderRadius: '4px',

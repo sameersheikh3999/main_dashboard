@@ -1,40 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
 import { 
-  IoBarChartOutline, 
   IoStatsChartOutline,
-  IoAnalyticsOutline,
-  IoPeopleOutline,
   IoSchoolOutline,
-  IoBookOutline,
-  IoCalendarOutline,
-  IoFilterOutline,
-  IoSearchOutline,
-  IoRefreshOutline,
-  IoDownloadOutline,
-  IoPrintOutline,
-  IoShareOutline,
-  IoNotificationsOutline,
-  IoMailOutline,
-  IoChatbubblesOutline,
-  IoPersonOutline,
-  IoCheckmarkCircleOutline,
   IoCloseCircleOutline,
-  IoWarningOutline,
   IoInformationCircleOutline,
-  IoArrowUpOutline,
-  IoArrowDownOutline,
-  IoTrendingUpOutline,
-  IoTrendingDownOutline,
   IoEyeOutline,
   IoEyeOffOutline,
-  IoGridOutline,
-  IoListOutline,
-  IoTimeOutline,
-  IoLocationOutline,
   IoCallOutline,
-  IoMailUnreadOutline,
-  IoConstructOutline,
   IoBuildOutline,
   IoBulbOutline
 } from 'react-icons/io5';
@@ -52,7 +25,6 @@ const SchoolInfrastructure = ({ schoolName }) => {
       setInfrastructure(response);
     } catch (err) {
       setError('Failed to fetch school infrastructure data');
-      console.error('Error fetching school infrastructure:', err);
     } finally {
       setLoading(false);
     }

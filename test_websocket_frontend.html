@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Messaging Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 WebSocket Messaging System Test</h1>
+        
+        <div class="status info">
+            This page tests the WebSocket messaging system connectivity and functionality.
+        </div>
+
+        <div class="test-section">
+            <h3>📡 Connection Test</h3>
+            <div class="form-group">
+                <label for="backendUrl">Backend URL:</label>
+                <input type="text" id="backendUrl" value="http://localhost:8000" placeholder="Backend URL">
+            </div>
+            <div class="form-group">
+                <label for="token">JWT Token (optional):</label>
+                <input type="text" id="token" placeholder="Enter JWT token for authenticated tests">
+            </div>
+            <button onclick="testBackendHealth()">Test Backend Health</button>
+            <button onclick="testWebSocketConnection()">Test WebSocket Connection</button>
+            <div id="connectionStatus"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>💬 Message Test</h3>
+            <div class="form-group">
+                <label for="conversationId">Conversation ID:</label>
+                <input type="text" id="conversationId" placeholder="Enter conversation ID (UUID format)">
+            </div>
+            <div class="form-group">
+                <label for="messageText">Test Message:</label>
+                <textarea id="messageText" rows="3" placeholder="Enter test message"></textarea>
+            </div>
+            <button onclick="sendTestMessage()">Send Test Message</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Test Log</h3>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            logElement.textContent += logEntry;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(logEntry.trim());
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        async function testBackendHealth() {
+            const backendUrl = document.getElementById('backendUrl').value;
+            log('Testing backend health...');
+            
+            try {
+                const response = await fetch(`${backendUrl}/api/health/`);
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Backend health check passed: ${JSON.stringify(data)}`, 'success');
+                    updateStatus('✅ Backend is healthy and running', 'success');
+                } else {
+                    log(`❌ Backend health check failed: ${response.status}`, 'error');
+                    updateStatus('❌ Backend health check failed', 'error');
+                }
+            } catch (error) {
+                log(`❌ Backend health check error: ${error.message}`, 'error');
+                updateStatus('❌ Backend health check error', 'error');
+            }
+        }
+
+        function testWebSocketConnection() {
+            const backendUrl = document.getElementById('backendUrl').value;
+            const token = document.getElementById('token').value;
+            const conversationId = document.getElementById('conversationId').value || 'test-conversation-id';
+            
+            log('Testing WebSocket connection...');
+            
+            // Close existing connection
+            if (ws) {
+                ws.close();
+            }
+            
+            // Create WebSocket URL
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = backendUrl.replace(/^https?:\/\//, '');
+            const wsUrl = `${protocol}//${host}/ws/chat/${conversationId}/`;
+            
+            if (token) {
+                wsUrl += `?token=${token}`;
+            }
+            
+            log(`Connecting to: ${wsUrl}`);
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function(event) {
+                    log('✅ WebSocket connected successfully', 'success');
+                    isConnected = true;
+                    updateStatus('✅ WebSocket connected', 'success');
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`📨 Received message: ${JSON.stringify(data)}`, 'info');
+                    } catch (error) {
+                        log(`📨 Received raw message: ${event.data}`, 'info');
+                    }
+                };
+                
+                ws.onclose = function(event) {
+                    log(`🔌 WebSocket disconnected: ${event.code} - ${event.reason}`, 'info');
+                    isConnected = false;
+                    updateStatus('🔌 WebSocket disconnected', 'info');
+                };
+                
+                ws.onerror = function(error) {
+                    log(`❌ WebSocket error: ${error}`, 'error');
+                    updateStatus('❌ WebSocket error', 'error');
+                };
+                
+            } catch (error) {
+                log(`❌ Failed to create WebSocket: ${error.message}`, 'error');
+                updateStatus('❌ Failed to create WebSocket', 'error');
+            }
+        }
+
+        function sendTestMessage() {
+            if (!ws || !isConnected) {
+                log('❌ WebSocket not connected. Please connect first.', 'error');
+                return;
+            }
+            
+            const messageText = document.getElementById('messageText').value || 'Test message from frontend';
+            const conversationId = document.getElementById('conversationId').value || 'test-conversation-id';
+            
+            const message = {
+                type: 'chat_message',
+                message: messageText,
+                sender_id: 'test-sender',
+                conversation_id: conversationId,
+                timestamp: new Date().toISOString()
+            };
+            
+            try {
+                ws.send(JSON.stringify(message));
+                log(`📤 Sent message: ${JSON.stringify(message)}`, 'info');
+            } catch (error) {
+                log(`❌ Failed to send message: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-test on page load
+        window.onload = function() {
+            log('🚀 WebSocket test page loaded');
+            log('Click "Test Backend Health" to start testing');
+        };
+    </script>
+</body>
+</html> 

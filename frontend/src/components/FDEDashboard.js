@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { apiService } from '../services/api';
 import MessagingModal from './MessagingModal';
@@ -16,20 +16,11 @@ import {
   IoSunnyOutline,
   IoChatbubblesOutline,
   IoLogOutOutline,
-  IoEyeOutline,
-  IoFilterOutline,
   IoStatsChartOutline,
   IoCheckmarkCircleOutline,
   IoCloseCircleOutline,
-  IoArrowUpOutline,
-  IoArrowDownOutline,
   IoTrendingUpOutline,
   IoTrendingDownOutline,
-  IoLocationOutline,
-  IoCalendarOutline,
-  IoBookOutline,
-  IoGridOutline,
-  IoListOutline,
   IoRefreshOutline,
   IoInformationCircleOutline
 } from 'react-icons/io5';
@@ -40,7 +31,7 @@ const FDEDashboard = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [summaryStats, setSummaryStats] = useState({});
   const [schools, setSchools] = useState([]);
-  const [sectors, setSectors] = useState([]);
+
   const [selectedSector, setSelectedSector] = useState('All');
   const [filteredSchools, setFilteredSchools] = useState([]);
   const [theme, setTheme] = useState('light');
@@ -65,31 +56,23 @@ const FDEDashboard = ({ onLogout }) => {
   }, [theme]);
 
   // Define the 6 sectors
-  const sectorList = ['B.K', 'Nilore', 'Sihala', 'Tarnol', 'Urban-I', 'Urban-II'];
+  const sectorList = useMemo(() => ['B.K', 'Nilore', 'Sihala', 'Tarnol', 'Urban-I', 'Urban-II'], []);
 
   // Map sector to AEO data (will be populated dynamically)
   const [sectorAEOMap, setSectorAEOMap] = useState({});
 
-  useEffect(() => {
-    loadData();
-    loadAEOData();
-    loadUnreadMessageCount();
-    // Get current user info
-    const currentUser = JSON.parse(localStorage.getItem('user'));
-    setUser(currentUser);
-  }, []);
 
-  const loadUnreadMessageCount = async () => {
+
+  const loadUnreadMessageCount = useCallback(async () => {
     try {
       const countData = await apiService.getUnreadMessageCount();
       setUnreadMessageCount(countData.unread_count || 0);
     } catch (error) {
-      console.error('Error loading unread message count:', error);
       setUnreadMessageCount(0);
     }
-  };
+  }, []);
 
-  const loadAEOData = async () => {
+  const loadAEOData = useCallback(async () => {
     try {
       const aeoMap = {};
       for (const sector of sectorList) {
@@ -100,14 +83,14 @@ const FDEDashboard = ({ onLogout }) => {
             aeoMap[sector] = aeos[0];
           }
         } catch (error) {
-          console.error(`Error loading AEO data for sector ${sector}:`, error);
+          // Handle error silently
         }
       }
       setSectorAEOMap(aeoMap);
     } catch (error) {
-      console.error('Error loading AEO data:', error);
+      // Handle error silently
     }
-  };
+  }, [sectorList]);
 
   useEffect(() => {
     // Filter schools based on selected sector and EMIS filter
@@ -156,24 +139,23 @@ const FDEDashboard = ({ onLogout }) => {
     setFilteredSchools(sortedSchools);
   }, [selectedSector, schools, sortFilter, emisFilter]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch real summary stats, schools with infrastructure data, and filter options
-      const [summaryStats, sectorSchools, filterOptions] = await Promise.all([
+      const [summaryStats, sectorSchools] = await Promise.all([
         apiService.getBigQuerySummaryStats(),
-        apiService.getSchoolsWithInfrastructure(),
-        apiService.getBigQueryFilterOptions()
+        apiService.getSchoolsWithInfrastructure()
       ]);
       setSummaryStats(summaryStats);
       setSchools(sectorSchools);
-      setSectors(filterOptions.sectors || []);
+
     } catch (error) {
-      console.error('Error loading FDE data:', error);
+      // Handle error silently
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleSectorClick = (sector) => {
     setSelectedSector(sector);
@@ -190,10 +172,19 @@ const FDEDashboard = ({ onLogout }) => {
   const handleMessageSent = () => {
     // This will be called when a message is sent through the modal
     // The MessagingSidebar will handle its own refresh
-    console.log('Message sent successfully');
+          // Message sent successfully
     // Refresh unread message count
     loadUnreadMessageCount();
   };
+
+  useEffect(() => {
+    loadData();
+    loadAEOData();
+    loadUnreadMessageCount();
+    // Get current user info
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    setUser(currentUser);
+  }, [loadData, loadAEOData, loadUnreadMessageCount]);
 
   // Prepare sector distribution for PieChart - use lesson plan usage distribution
   const [lessonPlanDistribution, setLessonPlanDistribution] = useState([]);
@@ -206,7 +197,6 @@ const FDEDashboard = ({ onLogout }) => {
         const response = await apiService.getLessonPlanUsageDistribution();
         setLessonPlanDistribution(response.distribution || []);
       } catch (error) {
-        console.error('Error loading lesson plan distribution:', error);
         // Fallback to school count distribution
         const fallbackData = sectorList.map(sector => ({
           name: sector,
@@ -219,7 +209,7 @@ const FDEDashboard = ({ onLogout }) => {
     if (schools.length > 0) {
       loadLessonPlanDistribution();
     }
-  }, [schools]);
+  }, [schools, sectorList]);
 
   // Load sector LP data
   useEffect(() => {
@@ -228,13 +218,12 @@ const FDEDashboard = ({ onLogout }) => {
         const response = await apiService.getSectorLPData();
         setSectorLPData(response || []);
       } catch (error) {
-        console.error('Error loading sector LP data:', error);
         setSectorLPData([]);
       }
     };
     
     loadSectorLPData();
-  }, []);
+  }, [sectorList]);
   
   // Use sector performance data for pie chart, fallback to lesson plan distribution
   const sectorCounts = sectorLPData.length > 0 ? 
@@ -252,7 +241,7 @@ const FDEDashboard = ({ onLogout }) => {
         value: schools.filter(s => s.sector === sector).length
       })).filter(item => item.value > 0);
   
-  const regionColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
 
   // Calculate sector performance using the new sector LP data
   const sectorPerformance = sectorLPData.length > 0 ? 
@@ -358,9 +347,7 @@ const FDEDashboard = ({ onLogout }) => {
                 borderRadius: '4px',
                 cursor: 'pointer',
                 transition: 'background-color 0.3s ease',
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-                color: '#475569',
-                border: '1px solid #cbd5e1'
+                background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'
               }}
             >
               Change Password

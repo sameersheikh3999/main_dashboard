@@ -278,7 +278,7 @@ const PasswordChangeModal = ({ isOpen, onClose, currentUser }) => {
       setPasswordStrength(result);
       setValidationErrors(result.errors || []);
     } catch (error) {
-      console.error('Password validation error:', error);
+      // Handle error silently
     }
   };
 
@@ -393,7 +393,7 @@ const PasswordChangeModal = ({ isOpen, onClose, currentUser }) => {
   const getPasswordStrengthComponent = () => {
     if (!passwordStrength) return null;
 
-    const { strength, score, errors } = passwordStrength;
+    const { strength, score } = passwordStrength;
     
     switch (strength) {
       case 'strong':

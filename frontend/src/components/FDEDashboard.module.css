@@ -1,9 +1,6 @@
 /* FDEDashboard.module.css */
 
-/* Global theme styles */
-.globalStyle {
-  /* These will be applied via JavaScript */
-}
+
 
 /* Main Container */
 .dashboardContainer {
@@ -34,6 +31,7 @@
   padding-top: 16px;
   padding-bottom: 16px;
   transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
 

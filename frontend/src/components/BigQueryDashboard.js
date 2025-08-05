@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
+  PieChart, Pie
 } from 'recharts';
 import { apiService } from '../services/api';
 import styles from './BigQueryDashboard.module.css';
@@ -20,53 +20,50 @@ const BigQueryDashboard = () => {
     date_to: ''
   });
 
-  useEffect(() => {
-    loadFilterOptions();
-    loadSummaryStats();
-    loadData();
-  }, []);
 
-  const loadFilterOptions = async () => {
+
+  const loadFilterOptions = useCallback(async () => {
     try {
       const options = await apiService.getBigQueryFilterOptions();
       setFilterOptions(options);
     } catch (error) {
-      console.error('Error loading filter options:', error);
       setError('Failed to load filter options');
     }
-  };
+  }, []);
 
-  const loadSummaryStats = async () => {
+  const loadSummaryStats = useCallback(async () => {
     try {
       const stats = await apiService.getBigQuerySummaryStats(filters);
       setSummaryStats(stats);
     } catch (error) {
-      console.error('Error loading summary stats:', error);
       setError('Failed to load summary statistics');
     }
-  };
+  }, [filters]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await apiService.getBigQueryData(filters);
       setChartData(data);
     } catch (error) {
-      console.error('Error loading data:', error);
       setError('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
-  };
+  useEffect(() => {
+    loadFilterOptions();
+    loadSummaryStats();
+    loadData();
+  }, [loadFilterOptions, loadSummaryStats, loadData]);
+
+
 
   const formatPercentage = (value) => {
     return `${(value * 100).toFixed(1)}%`;

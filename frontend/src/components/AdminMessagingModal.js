@@ -1,40 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { apiService } from '../services/api';
 import { 
-  IoBarChartOutline, 
-  IoStatsChartOutline,
-  IoAnalyticsOutline,
   IoPeopleOutline,
-  IoSchoolOutline,
-  IoBookOutline,
-  IoCalendarOutline,
-  IoFilterOutline,
-  IoSearchOutline,
-  IoRefreshOutline,
-  IoDownloadOutline,
-  IoPrintOutline,
-  IoShareOutline,
-  IoNotificationsOutline,
-  IoMailOutline,
-  IoChatbubblesOutline,
-  IoPersonOutline,
   IoCheckmarkCircleOutline,
   IoCloseCircleOutline,
-  IoWarningOutline,
-  IoInformationCircleOutline,
-  IoArrowUpOutline,
-  IoArrowDownOutline,
-  IoTrendingUpOutline,
-  IoTrendingDownOutline,
-  IoEyeOutline,
-  IoEyeOffOutline,
-  IoGridOutline,
-  IoListOutline,
-  IoTimeOutline,
-  IoLocationOutline,
-  IoCallOutline,
-  IoMailUnreadOutline,
-  IoCloseOutline
+  IoArrowUpOutline
 } from 'react-icons/io5';
 import styles from './AdminMessagingModal.module.css';
 
@@ -164,7 +134,7 @@ const AdminMessagingModal = ({ isOpen, onClose, theme = 'light', onMessageSent }
           await apiService.sendAdminMessage(recipient.id, message.trim());
           successCount++;
         } catch (err) {
-          console.error(`Failed to send message to ${recipient.name}:`, err);
+          // Handle error silently
           errorCount++;
         }
         
@@ -195,7 +165,7 @@ const AdminMessagingModal = ({ isOpen, onClose, theme = 'light', onMessageSent }
       
     } catch (err) {
       setError(err.message || 'Failed to send messages');
-      console.error('Error sending messages:', err);
+      // Handle error silently
     } finally {
       setLoading(false);
     }

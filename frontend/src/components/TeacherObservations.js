@@ -1,40 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api';
-import { 
-  IoBarChartOutline, 
-  IoStatsChartOutline,
-  IoAnalyticsOutline,
-  IoPeopleOutline,
-  IoSchoolOutline,
-  IoBookOutline,
-  IoCalendarOutline,
-  IoFilterOutline,
-  IoSearchOutline,
-  IoRefreshOutline,
-  IoDownloadOutline,
-  IoPrintOutline,
-  IoShareOutline,
-  IoNotificationsOutline,
-  IoMailOutline,
-  IoChatbubblesOutline,
-  IoPersonOutline,
-  IoCheckmarkCircleOutline,
-  IoCloseCircleOutline,
-  IoWarningOutline,
-  IoInformationCircleOutline,
-  IoArrowUpOutline,
-  IoArrowDownOutline,
-  IoTrendingUpOutline,
-  IoTrendingDownOutline,
-  IoEyeOutline,
-  IoEyeOffOutline,
-  IoGridOutline,
-  IoListOutline,
-  IoTimeOutline,
-  IoLocationOutline,
-  IoCallOutline,
-  IoMailUnreadOutline
-} from 'react-icons/io5';
+import { IoStatsChartOutline } from 'react-icons/io5';
 
 const TeacherObservations = ({ schoolName }) => {
   const [observations, setObservations] = useState([]);
@@ -49,7 +15,6 @@ const TeacherObservations = ({ schoolName }) => {
       setObservations(response.observations || []);
     } catch (err) {
       setError('Failed to fetch teacher observations');
-      console.error('Error fetching teacher observations:', err);
     } finally {
       setLoading(false);
     }

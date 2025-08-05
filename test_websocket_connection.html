@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.connecting {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket Connection Test</h1>
+        
+        <div class="input-group">
+            <label for="backendUrl">Backend URL:</label>
+            <input type="text" id="backendUrl" value="http://localhost:8000" placeholder="Enter backend URL">
+        </div>
+
+        <div class="input-group">
+            <label for="token">JWT Token:</label>
+            <input type="text" id="token" placeholder="Enter JWT token for authentication">
+        </div>
+
+        <div class="input-group">
+            <label for="userId">User ID:</label>
+            <input type="text" id="userId" placeholder="Enter user ID">
+        </div>
+
+        <div class="input-group">
+            <label for="conversationId">Conversation ID:</label>
+            <input type="text" id="conversationId" placeholder="Enter conversation ID for chat test">
+        </div>
+
+        <div class="input-group">
+            <label for="testMessage">Test Message:</label>
+            <input type="text" id="testMessage" placeholder="Enter message to send via WebSocket">
+        </div>
+
+        <div>
+            <button onclick="testNotificationWebSocket()">Test Notification WebSocket</button>
+            <button onclick="testChatWebSocket()">Test Chat WebSocket</button>
+            <button onclick="sendTestMessage()">Send Test Message</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div id="status" class="status disconnected">Status: Disconnected</div>
+
+        <div class="input-group">
+            <label>Connection Log:</label>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let notificationSocket = null;
+        let chatSocket = null;
+        let backendUrl = 'http://localhost:8000';
+
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateStatus(status, message) {
+            const statusElement = document.getElementById('status');
+            statusElement.className = `status ${status}`;
+            statusElement.textContent = `Status: ${message}`;
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        function getBackendUrl() {
+            const url = document.getElementById('backendUrl').value.trim();
+            return url || 'http://localhost:8000';
+        }
+
+        function getToken() {
+            return document.getElementById('token').value.trim();
+        }
+
+        function getUserId() {
+            return document.getElementById('userId').value.trim();
+        }
+
+        function getConversationId() {
+            return document.getElementById('conversationId').value.trim();
+        }
+
+        function getTestMessage() {
+            return document.getElementById('testMessage').value.trim();
+        }
+
+        function testNotificationWebSocket() {
+            const backendUrl = getBackendUrl();
+            const token = getToken();
+            const userId = getUserId();
+
+            if (!token || !userId) {
+                log('ERROR: Please provide both token and user ID');
+                return;
+            }
+
+            log('Testing Notification WebSocket...');
+            updateStatus('connecting', 'Connecting to notification WebSocket...');
+
+            try {
+                // Close existing connection
+                if (notificationSocket) {
+                    notificationSocket.close();
+                }
+
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = backendUrl.replace(/^https?:\/\//, '');
+                const wsUrl = `${protocol}//${host}/ws/notifications/?token=${token}`;
+
+                log(`Connecting to: ${wsUrl}`);
+                notificationSocket = new WebSocket(wsUrl);
+
+                notificationSocket.onopen = function(event) {
+                    log('✅ Notification WebSocket connected successfully');
+                    updateStatus('connected', 'Notification WebSocket Connected');
+                };
+
+                notificationSocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`📨 Received notification: ${JSON.stringify(data, null, 2)}`);
+                    } catch (error) {
+                        log(`❌ Error parsing notification message: ${error.message}`);
+                    }
+                };
+
+                notificationSocket.onclose = function(event) {
+                    log(`🔌 Notification WebSocket closed: ${event.code} - ${event.reason}`);
+                    updateStatus('disconnected', 'Notification WebSocket Disconnected');
+                };
+
+                notificationSocket.onerror = function(error) {
+                    log(`❌ Notification WebSocket error: ${error}`);
+                    updateStatus('disconnected', 'Notification WebSocket Error');
+                };
+
+            } catch (error) {
+                log(`❌ Error creating notification WebSocket: ${error.message}`);
+                updateStatus('disconnected', 'Connection Failed');
+            }
+        }
+
+        function testChatWebSocket() {
+            const backendUrl = getBackendUrl();
+            const token = getToken();
+            const conversationId = getConversationId();
+
+            if (!token || !conversationId) {
+                log('ERROR: Please provide both token and conversation ID');
+                return;
+            }
+
+            log('Testing Chat WebSocket...');
+            updateStatus('connecting', 'Connecting to chat WebSocket...');
+
+            try {
+                // Close existing connection
+                if (chatSocket) {
+                    chatSocket.close();
+                }
+
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = backendUrl.replace(/^https?:\/\//, '');
+                const wsUrl = `${protocol}//${host}/ws/chat/${conversationId}/?token=${token}`;
+
+                log(`Connecting to: ${wsUrl}`);
+                chatSocket = new WebSocket(wsUrl);
+
+                chatSocket.onopen = function(event) {
+                    log('✅ Chat WebSocket connected successfully');
+                    updateStatus('connected', 'Chat WebSocket Connected');
+                };
+
+                chatSocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`📨 Received chat message: ${JSON.stringify(data, null, 2)}`);
+                    } catch (error) {
+                        log(`❌ Error parsing chat message: ${error.message}`);
+                    }
+                };
+
+                chatSocket.onclose = function(event) {
+                    log(`🔌 Chat WebSocket closed: ${event.code} - ${event.reason}`);
+                    updateStatus('disconnected', 'Chat WebSocket Disconnected');
+                };
+
+                chatSocket.onerror = function(error) {
+                    log(`❌ Chat WebSocket error: ${error}`);
+                    updateStatus('disconnected', 'Chat WebSocket Error');
+                };
+
+            } catch (error) {
+                log(`❌ Error creating chat WebSocket: ${error.message}`);
+                updateStatus('disconnected', 'Connection Failed');
+            }
+        }
+
+        function sendTestMessage() {
+            const message = getTestMessage();
+            const userId = getUserId();
+
+            if (!message) {
+                log('ERROR: Please provide a test message');
+                return;
+            }
+
+            if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
+                log('ERROR: Chat WebSocket is not connected. Please connect first.');
+                return;
+            }
+
+            try {
+                const messageData = {
+                    type: 'chat_message',
+                    message: message,
+                    sender_id: userId || 'test_user',
+                    conversation_id: getConversationId(),
+                    timestamp: new Date().toISOString()
+                };
+
+                chatSocket.send(JSON.stringify(messageData));
+                log(`📤 Sent test message: ${JSON.stringify(messageData, null, 2)}`);
+            } catch (error) {
+                log(`❌ Error sending test message: ${error.message}`);
+            }
+        }
+
+        // Test backend health on page load
+        window.onload = function() {
+            log('🚀 WebSocket Test Tool Loaded');
+            log('Please enter your backend URL, JWT token, and user details to test WebSocket connections.');
+        };
+    </script>
+</body>
+</html> 

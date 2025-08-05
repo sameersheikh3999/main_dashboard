@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db import models
@@ -21,6 +22,11 @@ from google.cloud import bigquery
 import json
 from django.conf import settings
 import re
+
+# Custom rate throttle for login endpoints
+class LoginRateThrottle(AnonRateThrottle):
+    rate = '100/minute'  # Allow 100 login attempts per minute
+    scope = 'login'
 
 # Conversations
 class ConversationListCreateView(ListCreateAPIView):
@@ -1202,6 +1208,8 @@ class TriggerDataSyncView(APIView):
 
 class CustomLoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
+    
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')

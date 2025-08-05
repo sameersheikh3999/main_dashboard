@@ -9,10 +9,7 @@
 
 /* AEODashboard.module.css */
 
-/* Global theme styles */
-.globalStyle {
-  /* These will be applied via JavaScript */
-}
+
 
 /* Main Container */
 .dashboardContainer {
@@ -576,7 +573,6 @@
 }
 
 .teacherStatus {
-  display: inline-block;
   margin-right: 6px;
   padding: 3px 12px;
   border-radius: 12px;

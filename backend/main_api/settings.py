@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'channels',
     'api.apps.ApiConfig',
 ]
 
@@ -78,6 +79,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'main_api.wsgi.application'
+ASGI_APPLICATION = 'main_api.asgi.application'
+
+# Channel Layers for WebSocket
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -148,8 +160,9 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',
-        'user': '1000/hour'
+        'anon': '10000/hour',  # Increased from 1000/hour
+        'user': '100000/hour',  # Increased from 10000/hour
+        'login': '1000/minute'  # Increased from 100/minute
     }
 }
 

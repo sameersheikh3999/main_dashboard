@@ -46,8 +46,7 @@ const makeRequest = async (url, options = {}) => {
     ...options,
   };
 
-  console.log('Making request to:', url);
-  console.log('Request config:', config);
+
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), config.timeout);
@@ -58,11 +57,9 @@ const makeRequest = async (url, options = {}) => {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    console.log('Response status:', response.status);
     return await handleResponse(response);
   } catch (error) {
     clearTimeout(timeoutId);
-    console.error('Request error:', error);
     if (error.name === 'AbortError') {
       throw new Error('Request timeout');
     }
@@ -352,8 +349,6 @@ export const apiService = {
       if (value) params.append(key, value);
     });
     const url = `${API_BASE_URL}/admin/login-timestamps/?${params}`;
-    console.log('Making request to:', url);
-    console.log('Filters:', filters);
     return retryRequest(() => makeRequest(url));
   },
 

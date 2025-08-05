@@ -1,55 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-} from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { apiService, getCurrentUser } from '../services/api';
 import styles from './PrincipalDashboard.module.css';
 import MessagingSidebar from './MessagingSidebar';
-import TeacherObservations from './TeacherObservations';
-import SchoolInfrastructure from './SchoolInfrastructure';
 import PasswordChangeModal from './PasswordChangeModal';
 import {
   IoBarChartOutline,
   IoStatsChartOutline,
-  IoAnalyticsOutline,
   IoPeopleOutline,
   IoSchoolOutline,
-  IoBookOutline,
-  IoCalendarOutline,
-  IoFilterOutline,
   IoSearchOutline,
   IoRefreshOutline,
-  IoDownloadOutline,
-  IoPrintOutline,
-  IoShareOutline,
-  IoNotificationsOutline,
-  IoMailOutline,
   IoChatbubblesOutline,
   IoPersonOutline,
   IoCheckmarkCircleOutline,
-  IoCloseCircleOutline,
-  IoWarningOutline,
-  IoInformationCircleOutline,
-  IoArrowUpOutline,
-  IoArrowDownOutline,
-  IoTrendingUpOutline,
-  IoTrendingDownOutline,
-  IoEyeOutline,
-  IoEyeOffOutline,
-  IoGridOutline,
-  IoListOutline,
-  IoTimeOutline,
-  IoLocationOutline,
-  IoCallOutline,
-  IoMailUnreadOutline,
   IoMoonOutline,
   IoSunnyOutline,
   IoLogOutOutline
@@ -60,11 +24,11 @@ import {
 const PrincipalDashboard = ({ onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState({});
-  const [recentMessages, setRecentMessages] = useState([]);
+
   const [messagingSidebarOpen, setMessagingSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
-  const [replyText, setReplyText] = useState({});
+
   const [theme, setTheme] = useState('light');
   const [searchTerm, setSearchTerm] = useState('');
   const [performanceFilter, setPerformanceFilter] = useState('all');
@@ -178,7 +142,6 @@ const PrincipalDashboard = ({ onLogout }) => {
       const countData = await apiService.getUnreadMessageCount();
       setUnreadMessageCount(countData.unread_count || 0);
     } catch (error) {
-      console.error('Error loading unread message count:', error);
       setUnreadMessageCount(0);
     }
   };
@@ -190,30 +153,24 @@ const PrincipalDashboard = ({ onLogout }) => {
       const currentUser = getCurrentUser();
       const schoolName = currentUser?.profile?.school_name;
 
-      console.log('Loading dashboard data for principal:', currentUser);
-      console.log('School name:', schoolName);
-
       if (!schoolName) {
-        console.error('No school name found for principal user');
         return;
       }
 
       // Use available API methods to get data
-      const [schoolTeachersData, conversations] = await Promise.all([
+      const [schoolTeachersData] = await Promise.all([
         apiService.getSchoolTeachersData(),
         apiService.getUserConversations()
       ]);
 
-      console.log('School teachers data:', schoolTeachersData);
-      console.log('Conversations:', conversations);
+
 
       // Process school teachers data for dashboard stats
       // The API returns { school_details: {...}, teachers: [...] }
       const schoolDetails = schoolTeachersData.school_details;
       const teachersList = schoolTeachersData.teachers || [];
 
-      console.log('School details:', schoolDetails);
-      console.log('Teachers list:', teachersList);
+
 
       if (schoolDetails) {
         const dashboardStats = {
@@ -228,10 +185,8 @@ const PrincipalDashboard = ({ onLogout }) => {
           teachers: teachersList // Store teachers for display
         };
 
-        console.log('Dashboard stats:', dashboardStats);
         setDashboardData(dashboardStats);
       } else {
-        console.log('No school details found for:', schoolName);
         // Set default data if no school found
         setDashboardData({
           total_teachers: 0,
@@ -246,43 +201,15 @@ const PrincipalDashboard = ({ onLogout }) => {
         });
       }
 
-      // Process conversations for recent messages
-      const recentMessages = conversations.slice(0, 5).map(conv => ({
-        id: conv.id,
-        sender_name: conv.participants?.find(p => p.id !== currentUser.id)?.username || 'Unknown',
-        content: conv.last_message?.content || 'No message content',
-        timestamp: conv.last_message?.timestamp || conv.created_at,
-        conversation_id: conv.id
-      }));
 
-      console.log('Recent messages:', recentMessages);
-      setRecentMessages(recentMessages);
+
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReply = async (conversationId, e) => {
-    e.preventDefault();
-    const reply = replyText[conversationId];
-    if (!reply || !reply.trim()) return;
 
-    try {
-      await apiService.sendMessage(conversationId, reply);
-      setReplyText({ ...replyText, [conversationId]: '' });
-      // Refresh messages
-      const messages = await apiService.getRecentMessages();
-      setRecentMessages(messages);
-    } catch (error) {
-      console.error('Error sending reply:', error);
-    }
-  };
-
-  const formatTimestamp = (timestamp) => {
-    return new Date(timestamp).toLocaleString();
-  };
 
   const toggleMessagingSidebar = () => {
     setMessagingSidebarOpen(!messagingSidebarOpen);
@@ -345,9 +272,7 @@ const PrincipalDashboard = ({ onLogout }) => {
                 borderRadius: '4px',
                 cursor: 'pointer',
                 transition: 'background-color 0.3s ease',
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-                color: '#475569',
-                border: '1px solid #cbd5e1'
+                background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'
               }}
             >
               Change Password

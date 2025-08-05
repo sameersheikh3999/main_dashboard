@@ -1,40 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
 import { apiService } from '../services/api';
 import { 
-  IoBarChartOutline, 
-  IoStatsChartOutline,
-  IoAnalyticsOutline,
-  IoPeopleOutline,
-  IoSchoolOutline,
-  IoBookOutline,
-  IoCalendarOutline,
-  IoFilterOutline,
-  IoSearchOutline,
-  IoRefreshOutline,
-  IoDownloadOutline,
-  IoPrintOutline,
-  IoShareOutline,
-  IoNotificationsOutline,
-  IoMailOutline,
   IoChatbubblesOutline,
-  IoPersonOutline,
   IoCheckmarkCircleOutline,
   IoCloseCircleOutline,
-  IoWarningOutline,
-  IoInformationCircleOutline,
   IoArrowUpOutline,
-  IoArrowDownOutline,
-  IoTrendingUpOutline,
-  IoTrendingDownOutline,
-  IoEyeOutline,
-  IoEyeOffOutline,
-  IoGridOutline,
-  IoListOutline,
-  IoTimeOutline,
-  IoLocationOutline,
-  IoCallOutline,
-  IoMailUnreadOutline,
   IoCloseOutline
 } from 'react-icons/io5';
 
@@ -147,23 +118,7 @@ const SchoolInfo = styled.div`
   backdrop-filter: blur(10px);
 `;
 
-const SchoolName = styled.div`
-  font-weight: 700;
-  color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-  font-size: 1.1rem;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
 
-const PrincipalInfo = styled.div`
-  color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
 
 const MessageForm = styled.form`
   display: flex;
@@ -357,6 +312,22 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
   const [success, setSuccess] = useState('');
   const [recipient, setRecipient] = useState(null);
 
+
+
+  const fetchPrincipal = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const principalData = await apiService.getPrincipal(schoolName);
+      setRecipient(principalData);
+    } catch (err) {
+      setError(`Failed to fetch principal information: ${err.message}`);
+      // Handle error silently
+    } finally {
+      setLoading(false);
+    }
+  }, [schoolName]);
+
   useEffect(() => {
     if (isOpen && schoolName) {
       // Check if this is an AEO message (schoolData has id and name)
@@ -372,23 +343,7 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
         fetchPrincipal();
       }
     }
-  }, [isOpen, schoolName, schoolData]);
-
-  const fetchPrincipal = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      console.log('Fetching principal for school:', schoolName);
-      const principalData = await apiService.getPrincipal(schoolName);
-      console.log('Principal data received:', principalData);
-      setRecipient(principalData);
-    } catch (err) {
-      setError(`Failed to fetch principal information: ${err.message}`);
-      console.error('Error fetching principal:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isOpen, schoolName, schoolData, fetchPrincipal]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -429,7 +384,7 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
       
     } catch (err) {
       setError(err.message || 'Failed to send message');
-      console.error('Error sending message:', err);
+      // Handle error silently
     } finally {
       setLoading(false);
     }

@@ -58,20 +58,7 @@ const Input = styled.input`
   }
 `;
 
-const Select = styled.select`
-  padding: 12px 16px;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  font-size: 1rem;
-  outline: none;
-  background: white;
-  cursor: pointer;
-  
-  &:focus {
-    border-color: #0a58ca;
-    box-shadow: 0 0 0 2px rgba(10, 88, 202, 0.1);
-  }
-`;
+
 
 const LoginButton = styled.button`
   background: #0a58ca;

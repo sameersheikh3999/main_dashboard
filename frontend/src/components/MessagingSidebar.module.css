@@ -440,9 +440,9 @@
 
 .conversationHeader {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  flex: 1;
+  margin-bottom: 4px;
 }
 
 .conversationInfo {
@@ -455,13 +455,12 @@
 }
 
 .conversationName {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  font-size: 0.9rem;
   font-weight: 600;
-  font-size: 1rem;
-  margin-bottom: 2px;
   color: var(--whatsapp-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .conversationName.light {
@@ -595,18 +594,16 @@
 
 /* Unread Badge */
 .unreadBadge {
-  background: var(--whatsapp-green);
+  background-color: #ef4444;
   color: white;
   border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 2px 6px;
   font-size: 0.75rem;
   font-weight: 600;
-  border: 2px solid white;
-  box-shadow: 0 1px 3px var(--whatsapp-shadow);
+  margin-left: 8px;
+  min-width: 18px;
+  text-align: center;
+  display: inline-block;
 }
 
 /* User Details */

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Papa from 'papaparse';
 import styled, { createGlobalStyle } from 'styled-components';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line
 } from 'recharts';
@@ -315,9 +315,7 @@ const recentTeacherActivity = [
 
 // Components
 function MainDashboard({ user, onLogout }) {
-  const [dashboard, setDashboard] = useState('AEO');
   const [view, setView] = useState('overview');
-  const [currentView, setCurrentView] = useState('dashboard');
   const [csvData, setCsvData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bigQueryData, setBigQueryData] = useState({
@@ -351,32 +349,12 @@ function MainDashboard({ user, onLogout }) {
     });
   }, []);
 
-  // Load BigQuery data when user is authenticated
-  useEffect(() => {
-    if (user) {
-      console.log('User authenticated, loading BigQuery data...', { user: user.username, role: user.profile?.role });
-      loadBigQueryData();
-    } else {
-      console.log('User not authenticated yet', { user: user?.username });
-    }
-  }, [user]);
-
-  // Reload data when filters change
-  useEffect(() => {
-    if (user) {
-      loadBigQueryData();
-    }
-  }, [filters]);
-
-  const loadBigQueryData = async () => {
+  const loadBigQueryData = useCallback(async () => {
     setBigQueryLoading(true);
     try {
-      console.log('Loading BigQuery data...');
-      
       // Check if we have a valid token before making API calls
       const token = localStorage.getItem('token');
       if (!token) {
-        console.error('No token found, skipping BigQuery data load');
         return;
       }
       
@@ -398,14 +376,6 @@ function MainDashboard({ user, onLogout }) {
         apiService.getSchoolsWithInfrastructure()
       ]);
 
-      console.log('BigQuery data loaded:', {
-        filterOptions: filterOptions,
-        summaryStats,
-        teacherData: teacherData?.length,
-        aggregatedData: aggregatedData?.length,
-        allSchools: allSchools?.length
-      });
-
       setBigQueryData({
         filterOptions,
         summaryStats,
@@ -414,10 +384,8 @@ function MainDashboard({ user, onLogout }) {
         allSchools
       });
     } catch (error) {
-      console.error('Error loading BigQuery data:', error);
       // If we get a 401, clear the token and redirect to login
       if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-        console.log('Authentication failed, clearing token...');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/';
@@ -425,7 +393,21 @@ function MainDashboard({ user, onLogout }) {
     } finally {
       setBigQueryLoading(false);
     }
-  };
+  }, [filters]);
+
+  // Load BigQuery data when user is authenticated
+  useEffect(() => {
+    if (user) {
+      loadBigQueryData();
+    }
+  }, [user, loadBigQueryData]);
+
+  // Reload data when filters change
+  useEffect(() => {
+    if (user) {
+      loadBigQueryData();
+    }
+  }, [filters, user, loadBigQueryData]);
 
   // Group and aggregate data for dashboard
   const schoolsMap = {};
@@ -656,7 +638,6 @@ function MainDashboard({ user, onLogout }) {
 
   const handleMessageSent = () => {
     // This will be called when a message is sent through the modal
-    console.log('Message sent successfully');
   };
 
   // Loading state
@@ -1194,14 +1175,10 @@ function App() {
   useEffect(() => {
     // Check authentication status
     const checkAuth = () => {
-      console.log('Checking authentication status...');
       if (isAuthenticated()) {
         const currentUser = getCurrentUser();
-        console.log('User is authenticated:', currentUser?.username);
         setUser(currentUser);
         setAuthenticated(true);
-      } else {
-        console.log('User is not authenticated');
       }
     };
     
@@ -1210,7 +1187,6 @@ function App() {
 
   // Handler for successful login
   const handleLogin = (userData) => {
-    console.log('Login successful, user data:', userData);
     setUser(userData);
     setAuthenticated(true);
   };

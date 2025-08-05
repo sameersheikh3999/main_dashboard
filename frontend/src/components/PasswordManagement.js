@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { apiService } from '../services/api';
 import { 
@@ -119,13 +119,7 @@ const Button = styled.button`
   }
 `;
 
-const SecondaryButton = styled(Button)`
-  background: #6c757d;
-  
-  &:hover {
-    background: #5a6268;
-  }
-`;
+
 
 const ErrorMessage = styled.div`
   color: #dc3545;
@@ -262,7 +256,7 @@ const PasswordManagement = () => {
       setPasswordStrength(result);
       setValidationErrors(result.errors || []);
     } catch (error) {
-      console.error('Password validation error:', error);
+      // Handle error silently
     }
   };
 
@@ -367,7 +361,7 @@ const PasswordManagement = () => {
   const getPasswordStrengthComponent = () => {
     if (!passwordStrength) return null;
 
-    const { strength, score, errors } = passwordStrength;
+    const { strength, score } = passwordStrength;
     
     switch (strength) {
       case 'strong':

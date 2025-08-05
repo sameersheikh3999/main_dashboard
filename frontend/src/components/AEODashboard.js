@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -16,38 +16,13 @@ import MessagingSidebar from './MessagingSidebar';
 import PasswordChangeModal from './PasswordChangeModal';
 import styles from './AEODashboard.module.css';
 import { 
-  IoBarChartOutline, 
   IoStatsChartOutline,
-  IoAnalyticsOutline,
   IoPeopleOutline,
   IoSchoolOutline,
-  IoBookOutline,
-  IoCalendarOutline,
-  IoFilterOutline,
   IoSearchOutline,
   IoRefreshOutline,
-  IoDownloadOutline,
-  IoPrintOutline,
-  IoShareOutline,
-  IoMailOutline,
-  IoChatbubblesOutline,
-  IoPersonOutline,
-  IoCheckmarkCircleOutline,
   IoCloseCircleOutline,
-  IoWarningOutline,
-  IoInformationCircleOutline,
-  IoArrowUpOutline,
-  IoArrowDownOutline,
-  IoTrendingUpOutline,
-  IoTrendingDownOutline,
-  IoEyeOutline,
-  IoEyeOffOutline,
-  IoGridOutline,
-  IoListOutline,
-  IoTimeOutline,
-  IoLocationOutline,
-  IoCallOutline,
-  IoMailUnreadOutline
+  IoChatbubblesOutline
 } from 'react-icons/io5';
 
 // Register Chart.js components
@@ -98,7 +73,6 @@ const AEODashboard = ({ onLogout }) => {
   useEffect(() => {
     // Get current user info
     const currentUser = JSON.parse(localStorage.getItem('user'));
-    console.log('Current user from localStorage:', currentUser);
     setUser(currentUser);
     setUserSector(currentUser?.profile?.sector || '');
     loadData();
@@ -110,7 +84,6 @@ const AEODashboard = ({ onLogout }) => {
       const countData = await apiService.getUnreadMessageCount();
       setUnreadMessageCount(countData.unread_count || 0);
     } catch (error) {
-      console.error('Error loading unread message count:', error);
       setUnreadMessageCount(0);
     }
   };
@@ -122,19 +95,12 @@ const AEODashboard = ({ onLogout }) => {
       const currentUser = JSON.parse(localStorage.getItem('user'));
       const sector = currentUser?.profile?.sector;
       
-      console.log('Loading data for sector:', sector);
-      console.log('Full user object:', currentUser);
-      
       if (!sector) {
-        console.error('No sector found for AEO user');
-        console.error('User profile:', currentUser?.profile);
         return;
       }
 
       // Fetch sector schools with WiFi and activity data
       const sectorSchools = await apiService.getAEOSectorSchools();
-      
-      console.log('Sector schools with WiFi and activity data:', sectorSchools);
       
       // Calculate sector-specific metrics
       const totalSchoolsInSector = sectorSchools.length;
@@ -155,26 +121,7 @@ const AEODashboard = ({ onLogout }) => {
       // Calculate total teacher count across all schools in the sector
       const totalTeachers = sectorSchools.reduce((sum, school) => sum + (school.teacher_count || 0), 0);
       
-      // Debug Internet Availability calculation
-      const internetBreakdown = {
-        internet_availability_yes: sectorSchools.filter(school => school.internet_availability === 'Yes').length,
-        wifi_available_true: sectorSchools.filter(school => school.wifi_available).length,
-        wifi_status_available: sectorSchools.filter(school => school.wifi_status === 'Available').length,
-        wifi_status_limited: sectorSchools.filter(school => school.wifi_status === 'Limited').length
-      };
-      
-      console.log('Sector metrics:', {
-        totalSchools: totalSchoolsInSector,
-        totalTeachers: totalTeachers,
-        schoolsWithInternet: schoolsWithInternet,
-        internetPercentage: internetPercentage,
-        internetBreakdown: internetBreakdown,
-        activeSchools: activeSchools,
-        activityPercentage: activityPercentage,
-        schoolsWithLP: schoolsWithLP.length,
-        totalLP: totalLP,
-        avgLPRatio: avgLPRatio
-      });
+
       
       // Update summary stats with sector-specific calculations
       const sectorSummaryStats = {
@@ -190,7 +137,7 @@ const AEODashboard = ({ onLogout }) => {
       setSummaryStats(sectorSummaryStats);
       setSchools(sectorSchools);
     } catch (error) {
-      console.error('Error loading AEO data:', error);
+      // Handle error silently
     } finally {
       setLoading(false);
     }
@@ -206,7 +153,6 @@ const AEODashboard = ({ onLogout }) => {
 
   const handleMessageSent = () => {
     // This will be called when a message is sent through the modal
-    console.log('Message sent successfully');
     // Refresh unread message count
     loadUnreadMessageCount();
   };
@@ -303,12 +249,6 @@ const AEODashboard = ({ onLogout }) => {
     const withInternet = filteredSchools.filter(school => school.internet_availability === 'Yes').length;
     const withoutInternet = filteredSchools.length - withInternet;
     
-    // Debug logging
-    console.log('=== INTERNET COUNT CALCULATION (JSON ONLY) ===');
-    console.log('Filtered schools total:', filteredSchools.length);
-    console.log('Schools with internet (JSON):', withInternet);
-    console.log('Schools without internet (JSON):', withoutInternet);
-    
     return { withInternet, withoutInternet, total: filteredSchools.length };
   };
 
@@ -324,12 +264,8 @@ const AEODashboard = ({ onLogout }) => {
       return !isNaN(lpRatio) && lpRatio > 0;
     });
     
-    console.log('Valid schools for chart:', validSchools.length);
-    console.log('Sample school data:', validSchools.slice(0, 3));
-    
     // If no valid schools, create sample data for demonstration
     if (validSchools.length === 0) {
-      console.log('No valid schools found, creating sample data');
       return [
         { school_name: 'Sample School 1', avg_lp_ratio: 85.5 },
         { school_name: 'Sample School 2', avg_lp_ratio: 78.2 },
@@ -409,8 +345,6 @@ const AEODashboard = ({ onLogout }) => {
               onClick={() => setPasswordChangeModalOpen(true)}
               style={{  
                 marginRight: '10px',
-                border: 'none',
-                color: 'white',
                 fontWeight: 'bold',
                 padding: '8px 16px',
                 borderRadius: '4px',
