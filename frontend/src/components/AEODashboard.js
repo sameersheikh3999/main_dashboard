@@ -92,7 +92,7 @@ const AEODashboard = ({ onLogout }) => {
   useEffect(() => {
     const unreadCountInterval = setInterval(() => {
       loadUnreadMessageCount();
-    }, 10000); // Update every 10 seconds
+    }, 2000); // Update every 2 seconds for instant message indicators
 
     return () => clearInterval(unreadCountInterval);
   }, [loadUnreadMessageCount]);

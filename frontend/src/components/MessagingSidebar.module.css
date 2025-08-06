@@ -43,68 +43,7 @@
   margin-right: 2px;
 }
 
-/* Animations */
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInFromRight {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-@keyframes spin {
-  0% { 
-    transform: rotate(0deg); 
-  }
-  100% { 
-    transform: rotate(360deg); 
-  }
-}
-
-@keyframes newMessageHighlight {
-  0% {
-    background-color: rgba(37, 211, 102, 0.1);
-    transform: translateY(0);
-  }
-  50% {
-    background-color: rgba(37, 211, 102, 0.2);
-    transform: translateY(-2px);
-  }
-  100% {
-    background-color: transparent;
-    transform: translateY(0);
-  }
-}
+/* Animations removed for performance */
 
 /* Main Container */
 .sidebarContainer {
@@ -114,7 +53,7 @@
   width: 450px;
   height: 100vh;
   border-left: 1px solid var(--whatsapp-border);
-  transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* transition removed for performance */
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -124,7 +63,7 @@
 .sidebarContainer.open {
   right: 0;
   box-shadow: -8px 0 40px var(--whatsapp-shadow);
-  animation: slideIn 0.4s ease-out;
+  /* animation removed for performance */
 }
 
 .sidebarContainer.light {
@@ -169,6 +108,18 @@
   align-items: center;
   gap: 12px;
   color: white;
+  position: relative;
+}
+
+.headerLoadingSpinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid #ffffff;
+  border-radius: 50%;
+  margin-left: 8px;
+  /* animation removed for performance */
 }
 
 .sidebarTitle.light {
@@ -190,7 +141,7 @@
   cursor: pointer;
   font-size: 1.25rem;
   font-weight: 600;
-  transition: all 0.2s ease;
+  /* transition removed for performance */
   border: none;
   background: transparent;
   color: white;
@@ -260,7 +211,7 @@
   font-weight: 500;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  /* transition removed for performance */
   border-bottom: 3px solid transparent;
   position: relative;
 }
@@ -306,7 +257,7 @@
   width: 0;
   height: 3px;
   background: #3b82f6;
-  transition: width 0.2s ease;
+  /* transition removed for performance */
 }
 
 .tab.active::after {
@@ -398,8 +349,7 @@
   padding: 16px 20px;
   border-bottom: 1px solid var(--whatsapp-border);
   cursor: pointer;
-  transition: all 0.2s ease;
-  animation: fadeIn 0.3s ease-out;
+  /* transition and animation removed for performance */
   background: white;
   display: flex;
   align-items: flex-start;
@@ -430,12 +380,12 @@
 
 .conversationItem.newMessage {
   background: #f0f8f0;
-  animation: newMessageHighlight 1s ease-out;
+  /* animation removed for performance */
 }
 
 .conversationItem.recentlyUpdated {
   background: rgba(37, 211, 102, 0.1);
-  animation: newMessageHighlight 2s ease-out;
+  /* animation removed for performance */
 }
 
 .conversationHeader {
@@ -921,7 +871,7 @@
   border: 1px solid var(--whatsapp-border);
   border-radius: 20px;
   font-size: 0.9rem;
-  transition: all 0.2s ease;
+  /* transition removed for performance */
   background: white;
   color: var(--whatsapp-text);
 }
@@ -963,7 +913,7 @@
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  /* transition removed for performance */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1036,9 +986,8 @@
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  /* transition and animation removed for performance */
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  animation: fadeIn 0.3s ease-out;
 }
 
 .scrollToBottomButton.light {
@@ -1186,7 +1135,7 @@
 }
 
 .transition {
-  transition: all 0.2s ease;
+  /* transition removed for performance */
 }
 
 .hoverScale:hover {

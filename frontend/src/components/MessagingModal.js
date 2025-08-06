@@ -10,28 +10,7 @@ import {
   IoCloseOutline
 } from 'react-icons/io5';
 
-// Animations
-const fadeIn = keyframes`
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-`;
-
-const slideIn = keyframes`
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-`;
+// Animations removed for performance
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -45,7 +24,7 @@ const ModalOverlay = styled.div`
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  animation: ${fadeIn} 0.3s ease-out;
+  /* animation removed for performance */
 `;
 
 const ModalContent = styled.div`
@@ -58,7 +37,7 @@ const ModalContent = styled.div`
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   border: 1px solid ${props => props.theme === 'dark' ? '#334155' : '#e2e8f0'};
-  animation: ${slideIn} 0.3s ease-out;
+  /* animation removed for performance */
   display: flex;
   flex-direction: column;
 `;
@@ -95,7 +74,7 @@ const CloseButton = styled.button`
   color: ${props => props.theme === 'dark' ? '#94a3b8' : '#64748b'};
   font-size: 1.25rem;
   font-weight: 600;
-  transition: all 0.2s ease;
+  /* transition removed for performance */
 
   &:hover {
     background: ${props => props.theme === 'dark' ? 'rgba(71, 85, 105, 0.8)' : 'rgba(241, 245, 249, 0.9)'};
@@ -153,7 +132,7 @@ const TextArea = styled.textarea`
   resize: vertical;
   background: ${props => props.theme === 'dark' ? '#334155' : '#ffffff'};
   color: ${props => props.theme === 'dark' ? '#e2e8f0' : '#1e293b'};
-  transition: all 0.2s ease;
+  /* transition removed for performance */
   
   &:focus {
     outline: none;
@@ -185,7 +164,7 @@ const Button = styled.button`
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  /* transition removed for performance */
   border: 2px solid;
   display: flex;
   align-items: center;
@@ -243,11 +222,7 @@ const LoadingSpinner = styled.div`
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top: 2px solid #ffffff;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  /* animation removed for performance */
   }
 `;
 
@@ -260,7 +235,7 @@ const MessageContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  animation: ${slideIn} 0.3s ease-out;
+  /* animation removed for performance */
 `;
 
 const ErrorMessage = styled(MessageContainer)`

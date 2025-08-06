@@ -22,14 +22,16 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [sending, setSending] = useState(false);
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [recentlyUpdatedConversations, setRecentlyUpdatedConversations] = useState(new Set());
   const [previousUnreadCounts, setPreviousUnreadCounts] = useState({});
   const [wsConnected, setWsConnected] = useState(false);
+  const [headerLoading, setHeaderLoading] = useState(false);
   const user = getCurrentUser();
   const messageListRef = useRef(null);
+  const [firstConversationsLoad, setFirstConversationsLoad] = useState(true);
+  const [firstMessagesLoad, setFirstMessagesLoad] = useState(true);
   
   // Function to scroll to bottom of message list
   const scrollToBottom = () => {
@@ -135,94 +137,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
     }
   }, [authenticated, user?.id]); // Only depend on user.id, not the entire user object
 
-  // Handle incoming WebSocket messages
-  const handleWebSocketMessage = useCallback((data) => {
-    try {
-      if (!data || !data.type) {
-        console.log('Received invalid WebSocket message:', data);
-        return;
-      }
-      
-      console.log('Received WebSocket message:', data);
-      
-      if (data.type === 'chat_message' || data.type === 'new_message' || data.type === 'notification') {
-        const messageData = {
-          id: data.message_id || data.data?.message_id || Date.now(),
-          content: data.message || data.data?.message_text || '',
-          sender: {
-            id: data.sender_id || data.data?.sender_id || 'unknown',
-            name: data.sender_name || data.data?.sender_name || 'Unknown User'
-          },
-          timestamp: data.timestamp || data.data?.timestamp || new Date().toISOString(),
-          is_read: false
-        };
 
-        // Update messages for the specific conversation
-        const conversationId = data.conversation_id || data.data?.conversation_id || selectedConversation?.conversation_id;
-        if (conversationId) {
-          console.log('Updating messages for conversation:', conversationId);
-          
-          // Update messages immediately for real-time display
-          setMessages(prev => {
-            const currentMessages = prev[conversationId] || [];
-            const newMessages = [...currentMessages, messageData];
-            console.log('Updated messages:', newMessages);
-            return {
-              ...prev,
-              [conversationId]: newMessages
-            };
-          });
-
-          // Automatically reload all conversations when a new message is received
-          console.log('New message received, reloading all conversations...');
-          loadConversations(true);
-          
-          // Also reload messages for the current conversation if it's the one that received the message
-          if (selectedConversation?.conversation_id === conversationId) {
-            console.log('Reloading messages for current conversation:', conversationId);
-            loadMessagesForConversation(conversationId, true);
-          }
-
-          // Show notification for new messages from other users
-          if (data.sender_id !== user?.id) {
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('New Message', {
-                body: `${data.sender_name}: ${data.message}`,
-                icon: '/favicon.ico'
-              });
-            }
-            console.log('New message received from:', data.sender_name);
-            
-            // Update unread count in parent component immediately
-            if (onMessagesRead) {
-              console.log('Updating unread count via onMessagesRead callback');
-              onMessagesRead();
-            }
-          } else {
-            // Even for own messages, update unread count to ensure consistency
-            if (onMessagesRead) {
-              console.log('Updating unread count for own message');
-              onMessagesRead();
-            }
-          }
-
-          // Scroll to bottom for new messages if this conversation is selected
-          if (selectedConversation?.conversation_id === conversationId) {
-            setTimeout(() => {
-              scrollToBottom();
-            }, 100);
-          }
-        }
-      } else if (data.type === 'connection_established') {
-        console.log('WebSocket connection established:', data.message);
-      } else {
-        console.log('Received unknown WebSocket message type:', data.type);
-      }
-    } catch (error) {
-      console.error('Error handling WebSocket message:', error);
-      // Don't throw the error to prevent runtime crashes
-    }
-  }, [selectedConversation, user, onMessagesRead]);
 
   // Initialize chat WebSocket when conversation is selected
   useEffect(() => {
@@ -263,6 +178,20 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
       }
     }
   }, [selectedConversation?.conversation_id, authenticated, user?.id]); // Only depend on conversation ID and user ID
+
+  // When sidebar is opened, set firstConversationsLoad to true
+  useEffect(() => {
+    if (isOpen) {
+      setFirstConversationsLoad(true);
+    }
+  }, [isOpen]);
+
+  // When a conversation is selected, set firstMessagesLoad to true
+  useEffect(() => {
+    if (selectedConversation) {
+      setFirstMessagesLoad(true);
+    }
+  }, [selectedConversation]);
 
   const loadConversations = useCallback(async (forceReload = false) => {
     if (loading || (!forceReload && conversationsLoaded)) return;
@@ -338,6 +267,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
       
       setConversations(sortedConversations);
       setConversationsLoaded(true);
+      setFirstConversationsLoad(false);
     } catch (error) {
       setConversations([]);
       setConversationsLoaded(true);
@@ -365,7 +295,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
           onMessagesRead();
         }
       }
-    }, 2000); // Poll every 2 seconds for more responsive updates
+    }, 1000); // Poll every 1 second for instant updates
 
     return () => clearInterval(pollInterval);
   }, [isOpen, user, authenticated, conversationsLoaded, loading, loadConversations, onMessagesRead]);
@@ -421,10 +351,136 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
       // Handle error silently
     } finally {
       setLoadingMessages(false);
+      setFirstMessagesLoad(false);
     }
   };
 
+  // Handle incoming WebSocket messages
+  const handleWebSocketMessage = useCallback((data) => {
+    try {
+      if (!data || !data.type) {
+        console.log('Received invalid WebSocket message:', data);
+        return;
+      }
+      
+      console.log('Received WebSocket message:', data);
+      
+      if (data.type === 'chat_message' || data.type === 'new_message' || data.type === 'notification') {
+        // Handle different message formats from backend
+        const messageData = {
+          id: data.message_id || data.data?.message_id || data.id || Date.now(),
+          message_text: data.message || data.data?.message_text || data.message_text || '',
+          sender: {
+            id: data.sender_id || data.data?.sender_id || data.sender?.id || 'unknown',
+            name: data.sender_name || data.data?.sender_name || data.sender?.name || 'Unknown User',
+            role: data.sender_role || data.data?.sender_role || data.sender?.role || 'Unknown',
+            school_name: data.sender_school || data.data?.sender_school || data.sender?.school_name || ''
+          },
+          timestamp: data.timestamp || data.data?.timestamp || data.created_at || new Date().toISOString(),
+          is_read: false
+        };
 
+        console.log('Processing WebSocket message:', data);
+        console.log('Extracted message data:', messageData);
+
+        // Update messages for the specific conversation
+        const conversationId = data.conversation_id || data.data?.conversation_id || selectedConversation?.conversation_id;
+        if (conversationId) {
+          console.log('Updating messages for conversation:', conversationId);
+          
+          // Update messages immediately for real-time display
+          setMessages(prev => {
+            const currentMessages = prev[conversationId] || [];
+            
+            // Check if message already exists to avoid duplicates
+            const messageExists = currentMessages.some(msg => msg.id === messageData.id);
+            if (messageExists) {
+              console.log('Message already exists, skipping duplicate');
+              return prev;
+            }
+            
+            const newMessages = [...currentMessages, messageData];
+            console.log('Updated messages for conversation', conversationId, ':', newMessages);
+            
+            // Force immediate UI update
+            setTimeout(() => {
+              scrollToBottom();
+            }, 50);
+            
+            return {
+              ...prev,
+              [conversationId]: newMessages
+            };
+          });
+
+          // Automatically reload all conversations when a new message is received
+          console.log('New message received, reloading all conversations...');
+          loadConversations(true);
+          
+          // Also reload messages for the current conversation if it's the one that received the message
+          if (selectedConversation?.conversation_id === conversationId) {
+            console.log('Reloading messages for current conversation:', conversationId);
+            loadMessagesForConversation(conversationId, true);
+            
+            // Mark messages as read immediately
+            if (onMessagesRead) {
+              onMessagesRead();
+            }
+          }
+
+          // Show notification for new messages from other users
+          if (data.sender_id !== user?.id) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('New Message', {
+                body: `${data.sender_name}: ${data.message}`,
+                icon: '/favicon.ico'
+              });
+            }
+            console.log('New message received from:', data.sender_name);
+            
+            // Update unread count in parent component immediately
+            if (onMessagesRead) {
+              console.log('Updating unread count via onMessagesRead callback');
+              onMessagesRead();
+            }
+          } else {
+            // Even for own messages, update unread count to ensure consistency
+            if (onMessagesRead) {
+              console.log('Updating unread count for own message');
+              onMessagesRead();
+            }
+          }
+
+          // Scroll to bottom for new messages if this conversation is selected
+          if (selectedConversation?.conversation_id === conversationId) {
+            setTimeout(() => {
+              scrollToBottom();
+            }, 100);
+          }
+        }
+      } else if (data.type === 'connection_established') {
+        console.log('WebSocket connection established:', data.message);
+      } else {
+        console.log('Received unknown WebSocket message type:', data.type);
+      }
+    } catch (error) {
+      console.error('Error handling WebSocket message:', error);
+      // Don't throw the error to prevent runtime crashes
+    }
+  }, [selectedConversation, user, onMessagesRead, loadConversations, loadMessagesForConversation]);
+
+  // Poll for messages in current conversation every 500ms for instant updates
+  useEffect(() => {
+    if (!selectedConversation || !authenticated || !user?.id) return;
+
+    const messagePollInterval = setInterval(() => {
+      if (selectedConversation) {
+        loadMessagesForConversation(selectedConversation.conversation_id, true);
+      }
+    }, 500);
+
+    return () => clearInterval(messagePollInterval);
+  }, [selectedConversation?.conversation_id, authenticated, user?.id, loadMessagesForConversation]);
 
   const handleConversationClick = async (conversation) => {
     setSelectedConversation(conversation);
@@ -437,6 +493,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
     if (!newMessage.trim() || !selectedConversation) return;
 
     try {
+      setHeaderLoading(true);
       const messageText = newMessage.trim();
       setNewMessage('');
       
@@ -507,6 +564,8 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
     } catch (error) {
       console.error('Error in handleSendMessage:', error);
       // Don't throw the error to prevent runtime crashes
+    } finally {
+      setHeaderLoading(false);
     }
   };
 
@@ -604,7 +663,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
                 <IoChevronDownOutline style={{ marginRight: '4px' }} /> New Messages
               </button>
             )}
-            {loadingMessages ? (
+            {firstMessagesLoad && loadingMessages ? (
               <div className={`${styles.emptyState} ${styles[theme]}`}>
                 <div className={styles.loadingSpinner}></div>
                 Loading messages...
@@ -675,23 +734,14 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
               placeholder="Type your message..."
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              disabled={sending}
+              disabled={headerLoading}
             />
             <button 
               type="submit"
-              className={`${styles.sendButton} ${sending || !newMessage.trim() ? styles.disabled : ''} ${styles[theme]}`}
-              disabled={sending || !newMessage.trim()}
+              className={`${styles.sendButton} ${!newMessage.trim() ? styles.disabled : ''} ${styles[theme]}`}
+              disabled={!newMessage.trim()}
             >
-              {sending ? (
-                <>
-                  <div className={styles.loadingSpinner}></div>
-                  Sending
-                </>
-              ) : (
-                <>
-                  <IoArrowUpOutline />
-                </>
-              )}
+              <IoArrowUpOutline />
             </button>
           </form>
         </div>
@@ -702,20 +752,21 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
   // Show conversations list
   return (
     <div className={`${styles.sidebarContainer} ${isOpen ? styles.open : ''} ${styles[theme]}`}>
-      <div className={`${styles.sidebarHeader} ${styles[theme]}`}>
+            <div className={`${styles.sidebarHeader} ${styles[theme]}`}>
         <h2 className={`${styles.sidebarTitle} ${styles[theme]}`}>
           <IoChatbubblesOutline style={{ marginRight: '8px' }} /> Messages
+          {headerLoading && <div className={styles.headerLoadingSpinner}></div>}
         </h2>
-                  <button 
-            className={`${styles.closeButton} ${styles[theme]} ${styles.hoverScale}`}
-            onClick={onClose}
-          >
-            <IoCloseOutline />
-          </button>
+                <button 
+          className={`${styles.closeButton} ${styles[theme]} ${styles.hoverScale}`}
+          onClick={onClose}
+        >
+          <IoCloseOutline />
+        </button>
       </div>
 
       <div className={styles.sidebarContent}>
-        {loading ? (
+        {firstConversationsLoad && loading ? (
           <div className={`${styles.emptyState} ${styles[theme]}`}>
             <div className={styles.loadingSpinner}></div>
             Loading conversations...

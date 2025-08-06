@@ -11,18 +11,7 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+  /* animation removed for performance */
 }
 
 /* Modal Content */
@@ -36,7 +25,7 @@
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   border: 1px solid #e2e8f0;
-  animation: slideIn 0.3s ease-out;
+  /* animation removed for performance */
   display: flex;
   flex-direction: column;
 }
@@ -44,17 +33,6 @@
 .modalContent.dark {
   background: #1e293b;
   border-color: #334155;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
 }
 
 /* Modal Header */
@@ -99,7 +77,7 @@
   color: #64748b;
   font-size: 1.25rem;
   font-weight: 600;
-  transition: all 0.2s ease;
+  /* transition removed for performance */
 }
 
 .closeButton:hover {
@@ -190,7 +168,7 @@
   resize: vertical;
   background: #ffffff;
   color: #1e293b;
-  transition: all 0.2s ease;
+  /* transition removed for performance */
 }
 
 .textArea:focus {
@@ -248,7 +226,7 @@
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  /* transition removed for performance */
   border: 2px solid;
   background: rgba(248, 250, 252, 0.8);
   color: #1e293b;
@@ -335,7 +313,7 @@
   gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid #f1f5f9;
-  transition: background-color 0.2s ease;
+  /* transition removed for performance */
 }
 
 .recipientItem:hover {
@@ -396,7 +374,7 @@
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  /* transition removed for performance */
   border: 2px solid;
   background: #f1f5f9;
   color: #1e293b;
@@ -473,7 +451,7 @@
 .progressFill {
   height: 100%;
   background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-  transition: width 0.3s ease;
+  /* transition removed for performance */
 }
 
 /* Messages */
@@ -520,12 +498,7 @@
   border: 2px solid transparent;
   border-top: 2px solid currentColor;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  /* animation removed for performance */
 }
 
 /* Select All/None Buttons Container */
