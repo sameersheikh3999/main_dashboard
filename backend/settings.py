@@ -10,6 +10,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-y9r1*v1c-5)((n0!rx39c37rt-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
+# Force ALLOWED_HOSTS to include the required domains
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
@@ -19,6 +20,12 @@ ALLOWED_HOSTS = [
     'api-dashboard.niete.pk',
     'dashboard.niete.pk'
 ]
+
+# Ensure these domains are always included regardless of environment variables
+REQUIRED_HOSTS = ['api-dashboard.niete.pk', 'dashboard.niete.pk']
+for host in REQUIRED_HOSTS:
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
 
 # Application definition
 INSTALLED_APPS = [
@@ -147,6 +154,15 @@ CORS_ALLOWED_ORIGINS = [
     "https://api-dashboard.niete.pk",
 ]
 
+# Ensure these origins are always included regardless of environment variables
+REQUIRED_CORS_ORIGINS = [
+    "https://dashboard.niete.pk",
+    "https://api-dashboard.niete.pk"
+]
+for origin in REQUIRED_CORS_ORIGINS:
+    if origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(origin)
+
 CORS_ALLOW_CREDENTIALS = True
 
 # Additional CORS settings for production
@@ -193,4 +209,4 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
-} 
+} # Force deployment - Wed Aug  6 06:39:21 PM PKT 2025
