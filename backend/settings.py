@@ -210,3 +210,4 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 } # Force deployment - Wed Aug  6 06:39:21 PM PKT 2025
+# CI/CD Trigger - Wed Aug  6 06:50:46 PM PKT 2025
