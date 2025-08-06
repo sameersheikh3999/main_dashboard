@@ -1,0 +1,56 @@
+name: Deploy Dashboard Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      -  '.github/workflows/Deployment-frontend.yaml'
+
+jobs:
+  deploy:
+    name: SSH Deploy to VM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.HOST_KEY }}
+
+      - name: Deploy to VM
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.HOST_USER }}@${{ secrets.HOST_IP }} << 'EOF'
+            set -e
+
+            echo "🔄 Navigating to deployment directory..."
+            cd /home/ubuntu/fde-dashboard
+
+            echo "📦 Pulling latest changes from main branch..."
+            git pull origin main
+
+            echo "📁 Moving into frontend directory..."
+            cd frontend
+
+            echo "🔨 Building Docker image..."
+            docker build -t dashboard-frontend-${{ github.run_number }} .
+
+            echo "🛑 Stopping and removing existing container (if running)..."
+            docker stop dashboard-frontend || true
+            docker rm dashboard-frontend || true
+
+            echo "🚀 Running new container..."
+            docker run -d --name dashboard-frontend -p 3000:3000 dashboard-frontend-${{ github.run_number }}
+
+            echo "🧹 Cleaning up stopped containers..."
+            docker container prune -f
+
+            echo "🧼 Cleaning up dangling images..."
+            docker image prune -f
+
+            echo "✅ Deployment complete."
+          EOF
