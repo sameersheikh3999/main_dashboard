@@ -95,7 +95,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
         
         // Only initialize if not already connected
         if (!websocketService.isConnected('notification')) {
-          console.log('Initializing WebSocket for receiving messages');
+          console.log('Initializing WebSocket for receiving real-time messages');
           
           // Initialize WebSocket without health check
           websocketService.initialize(user.id, token).catch(error => {
@@ -104,7 +104,9 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
           
           // Set up WebSocket message handlers for receiving messages
           try {
+            websocketService.onMessage('notification', handleWebSocketMessage);
             websocketService.onMessage('chat', handleWebSocketMessage);
+            websocketService.onConnection('notification', setWsConnected);
             websocketService.onConnection('chat', setWsConnected);
           } catch (error) {
             console.error('Error setting up WebSocket handlers:', error);
@@ -117,7 +119,9 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
         return () => {
           // Only clean up message handlers, don't disconnect WebSocket
           try {
+            websocketService.onMessage('notification', null);
             websocketService.onMessage('chat', null);
+            websocketService.onConnection('notification', null);
             websocketService.onConnection('chat', null);
           } catch (error) {
             console.error('Error cleaning up WebSocket handlers:', error);
@@ -141,43 +145,43 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
       
       console.log('Received WebSocket message:', data);
       
-      if (data.type === 'chat_message' || data.type === 'new_message') {
+      if (data.type === 'chat_message' || data.type === 'new_message' || data.type === 'notification') {
         const messageData = {
-          id: data.message_id || Date.now(),
-          content: data.message || '',
+          id: data.message_id || data.data?.message_id || Date.now(),
+          content: data.message || data.data?.message_text || '',
           sender: {
-            id: data.sender_id || 'unknown',
-            name: data.sender_name || 'Unknown User'
+            id: data.sender_id || data.data?.sender_id || 'unknown',
+            name: data.sender_name || data.data?.sender_name || 'Unknown User'
           },
-          timestamp: data.timestamp || new Date().toISOString(),
+          timestamp: data.timestamp || data.data?.timestamp || new Date().toISOString(),
           is_read: false
         };
 
         // Update messages for the specific conversation
-        const conversationId = data.conversation_id || selectedConversation?.conversation_id;
+        const conversationId = data.conversation_id || data.data?.conversation_id || selectedConversation?.conversation_id;
         if (conversationId) {
-          setMessages(prev => ({
-            ...prev,
-            [conversationId]: [
-              ...(prev[conversationId] || []),
-              messageData
-            ]
-          }));
+          console.log('Updating messages for conversation:', conversationId);
+          
+          // Update messages immediately for real-time display
+          setMessages(prev => {
+            const currentMessages = prev[conversationId] || [];
+            const newMessages = [...currentMessages, messageData];
+            console.log('Updated messages:', newMessages);
+            return {
+              ...prev,
+              [conversationId]: newMessages
+            };
+          });
 
-          // Update conversation list with new message
-          setConversations(prev => prev.map(conv => {
-            if (conv.conversation_id === conversationId) {
-              return {
-                ...conv,
-                latest_message: {
-                  content: data.message || '',
-                  timestamp: data.timestamp || new Date().toISOString()
-                },
-                unread_count: conv.unread_count + (data.sender_id !== user?.id ? 1 : 0)
-              };
-            }
-            return conv;
-          }));
+          // Automatically reload all conversations when a new message is received
+          console.log('New message received, reloading all conversations...');
+          loadConversations(true);
+          
+          // Also reload messages for the current conversation if it's the one that received the message
+          if (selectedConversation?.conversation_id === conversationId) {
+            console.log('Reloading messages for current conversation:', conversationId);
+            loadMessagesForConversation(conversationId, true);
+          }
 
           // Show notification for new messages from other users
           if (data.sender_id !== user?.id) {
@@ -188,6 +192,18 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
               });
             }
             console.log('New message received from:', data.sender_name);
+            
+            // Update unread count in parent component immediately
+            if (onMessagesRead) {
+              console.log('Updating unread count via onMessagesRead callback');
+              onMessagesRead();
+            }
+          } else {
+            // Even for own messages, update unread count to ensure consistency
+            if (onMessagesRead) {
+              console.log('Updating unread count for own message');
+              onMessagesRead();
+            }
           }
 
           // Scroll to bottom for new messages if this conversation is selected
@@ -206,7 +222,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
       console.error('Error handling WebSocket message:', error);
       // Don't throw the error to prevent runtime crashes
     }
-  }, [selectedConversation, user]);
+  }, [selectedConversation, user, onMessagesRead]);
 
   // Initialize chat WebSocket when conversation is selected
   useEffect(() => {
@@ -248,8 +264,8 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
     }
   }, [selectedConversation?.conversation_id, authenticated, user?.id]); // Only depend on conversation ID and user ID
 
-  const loadConversations = useCallback(async () => {
-    if (loading || conversationsLoaded) return;
+  const loadConversations = useCallback(async (forceReload = false) => {
+    if (loading || (!forceReload && conversationsLoaded)) return;
     
     try {
       setLoading(true);
@@ -332,7 +348,7 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
 
   useEffect(() => {
     if (isOpen && user && authenticated && !conversationsLoaded && !loading) {
-      loadConversations();
+      loadConversations(true);
     }
   }, [isOpen, user, authenticated, conversationsLoaded, loading, loadConversations]);
 
@@ -342,12 +358,17 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
 
     const pollInterval = setInterval(() => {
       if (conversationsLoaded && !loading) {
-        loadConversations();
+        loadConversations(true); // Force reload to get latest data
+        // Also update unread count during polling
+        if (onMessagesRead) {
+          console.log('Polling: Updating unread count');
+          onMessagesRead();
+        }
       }
-    }, 5000); // Poll every 5 seconds for more responsive updates
+    }, 2000); // Poll every 2 seconds for more responsive updates
 
     return () => clearInterval(pollInterval);
-  }, [isOpen, user, authenticated, conversationsLoaded, loading, loadConversations]);
+  }, [isOpen, user, authenticated, conversationsLoaded, loading, loadConversations, onMessagesRead]);
 
   const loadMessagesForConversation = async (conversationId, forceRefresh = false) => {
     if (!forceRefresh && (messages[conversationId] || loadingMessages)) return;
@@ -360,7 +381,12 @@ const MessagingSidebar = ({ isOpen, onClose, theme = 'light', onMessagesRead }) 
       const conversation = conversations.find(c => c.conversation_id === conversationId);
       if (conversation) {
 
-        const messagesData = await apiService.getUserMessages(conversation.other_user.id);
+        console.log('Loading messages for conversation:', conversationId);
+        const messagesData = await apiService.getMessages(conversationId);
+        console.log('Messages loaded:', messagesData?.length || 0, 'messages');
+        if (messagesData && messagesData.length > 0) {
+          console.log('Sample message structure:', messagesData[0]);
+        }
 
         
         setMessages(prev => {

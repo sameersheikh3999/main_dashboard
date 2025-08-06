@@ -394,6 +394,51 @@ class MessageCreateView(CreateAPIView):
             # Update the conversation's last_message_at to the current timestamp
             conversation.last_message_at = timezone.now()
             conversation.save()
+            
+            # Send WebSocket notification to the receiver
+            try:
+                from channels.layers import get_channel_layer
+                from asgiref.sync import async_to_sync
+                
+                channel_layer = get_channel_layer()
+                
+                # Send notification to the receiver's personal notification group
+                async_to_sync(channel_layer.group_send)(
+                    f"user_{receiver.id}",
+                    {
+                        'type': 'notification_message',
+                        'message': f'New message from {sender.get_full_name() or sender.username}',
+                        'notification_type': 'new_message',
+                        'data': {
+                            'conversation_id': str(conversation.id),
+                            'sender_id': sender.id,
+                            'sender_name': sender.get_full_name() or sender.username,
+                            'message_text': message_text,
+                            'timestamp': message.timestamp.isoformat(),
+                            'message_id': str(message.id)
+                        }
+                    }
+                )
+                
+                # Also send to the conversation group for real-time chat updates
+                async_to_sync(channel_layer.group_send)(
+                    f"chat_{conversation.id}",
+                    {
+                        'type': 'chat_message',
+                        'message': message_text,
+                        'sender_id': sender.id,
+                        'sender_name': sender.get_full_name() or sender.username,
+                        'timestamp': message.timestamp.isoformat(),
+                        'message_id': str(message.id),
+                        'conversation_id': str(conversation.id)
+                    }
+                )
+                
+                print(f"WebSocket notification sent to receiver {receiver.id} for message {message.id}")
+            except Exception as e:
+                print(f"Error sending WebSocket notification: {e}")
+                # Don't fail the request if WebSocket notification fails
+            
             serializer = self.get_serializer(message)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Conversation.DoesNotExist:

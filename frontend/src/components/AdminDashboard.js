@@ -147,6 +147,24 @@ const AdminDashboard = ({ onLogout }) => {
     setUser(currentUser);
   }, [filters, loadDashboardData]);
 
+  const loadUnreadMessageCount = async () => {
+    try {
+      const count = await apiService.getUnreadMessageCount();
+      setUnreadMessageCount(count.unread_count || 0);
+    } catch (error) {
+      // Handle error silently
+    }
+  };
+
+  // Periodically update unread count to ensure real-time updates
+  useEffect(() => {
+    const unreadCountInterval = setInterval(() => {
+      loadUnreadMessageCount();
+    }, 10000); // Update every 10 seconds
+
+    return () => clearInterval(unreadCountInterval);
+  }, [loadUnreadMessageCount]);
+
 
 
   // Scroll effect for header
@@ -282,15 +300,6 @@ const AdminDashboard = ({ onLogout }) => {
 
   const formatDateTime = (dateString) => {
     return new Date(dateString).toLocaleString();
-  };
-
-  const loadUnreadMessageCount = async () => {
-    try {
-      const count = await apiService.getUnreadMessageCount();
-      setUnreadMessageCount(count.unread_count || 0);
-    } catch (error) {
-      // Handle error silently
-    }
   };
 
   const toggleMessagingSidebar = () => {
@@ -1009,10 +1018,101 @@ const AdminDashboard = ({ onLogout }) => {
 
   if (loading) {
     return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.loading}>
-          <div className={styles.spinner}></div>
-          Loading Admin Dashboard...
+      <div className={`${styles.adminDashboard} ${theme === 'dark' ? styles.dark : ''}`}>
+        {/* Header */}
+        <header className={`${styles.header} ${isScrolled ? styles.scrolled : ''}`}>
+          <div className={styles.headerLeft}>
+            <h1><IoBarChartOutline style={{ marginRight: '12px', verticalAlign: 'middle' }} /> Admin Dashboard</h1>
+            <p><IoInformationCircleOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Comprehensive data overview with no restrictions</p>
+            <div className={styles.updateIndicator}>
+              <span className={styles.staticIndicator}></span>
+              <IoRefreshOutline style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Manual refresh only - data updates when database changes
+            </div>
+          </div>
+          <div className={styles.headerRight}>
+            <button 
+              onClick={toggleMessagingSidebar}
+              className={styles.messagesButton}
+              title="View Messages"
+            >
+              <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/>
+              </svg>
+              Messages
+              {unreadMessageCount > 0 && (
+                <div className={`${styles.messageCountBadge} ${styles.hasUnread}`}>
+                  {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                </div>
+              )}
+            </button>
+            <button 
+              onClick={() => setShowMessagingModal(true)}
+              className={styles.messagingButton}
+              title="Send Broadcast Message"
+            >
+              <IoNotificationsOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Message All
+            </button>
+            <button 
+              onClick={loadDashboardData} 
+              className={styles.refreshButton}
+              title="Refresh Data"
+              disabled={loading}
+            >
+              {loading ? <IoTimeOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> : <IoRefreshOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} />}
+            </button>
+            <button onClick={toggleTheme} className={styles.themeToggle}>
+              {theme === 'light' ? <IoMoonOutline /> : <IoSunnyOutline />}
+            </button>
+            <button 
+              onClick={() => setPasswordChangeModalOpen(true)}
+              style={{ 
+                marginRight: '10px',
+                fontWeight: 'bold',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                transition: 'background-color 0.3s ease',
+                background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                color: '#475569',
+                border: '1px solid #cbd5e1'
+              }}
+            >
+              Change Password
+            </button>
+            <button onClick={onLogout} className={styles.logoutBtn}>
+              <IoCloseCircleOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Logout
+            </button>
+          </div>
+        </header>
+
+        {/* Loading Content */}
+        <div className={styles.loadingContent}>
+          <div className={styles.loadingGrid}>
+            <div className={`${styles.loadingCard} ${styles.loadingCard1}`}>
+              <div className={styles.loadingTitle}>Total Schools</div>
+              <div className={styles.loadingValue}>
+                <div className={styles.smallLoadingSpinner}></div>
+              </div>
+            </div>
+            <div className={`${styles.loadingCard} ${styles.loadingCard2}`}>
+              <div className={styles.loadingTitle}>Total Teachers</div>
+              <div className={styles.loadingValue}>
+                <div className={styles.smallLoadingSpinner}></div>
+              </div>
+            </div>
+            <div className={`${styles.loadingCard} ${styles.loadingCard3}`}>
+              <div className={styles.loadingTitle}>Total Sectors</div>
+              <div className={styles.loadingValue}>
+                <div className={styles.smallLoadingSpinner}></div>
+              </div>
+            </div>
+            <div className={`${styles.loadingCard} ${styles.loadingCard4}`}>
+              <div className={styles.loadingTitle}>Avg LP Ratio</div>
+              <div className={styles.loadingValue}>
+                <div className={styles.smallLoadingSpinner}></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1226,7 +1326,7 @@ const AdminDashboard = ({ onLogout }) => {
         isOpen={showMessagingModal}
         onClose={() => setShowMessagingModal(false)}
         theme={theme}
-        onMessageSent={loadDashboardData}
+        onMessageSent={loadUnreadMessageCount}
       />
 
       {/* Messaging Sidebar */}

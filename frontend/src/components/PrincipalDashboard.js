@@ -44,12 +44,30 @@ const PrincipalDashboard = ({ onLogout }) => {
     document.body.style.transition = 'all 0.3s ease';
   }, [theme]);
 
+  const loadUnreadMessageCount = async () => {
+    try {
+      const countData = await apiService.getUnreadMessageCount();
+      setUnreadMessageCount(countData.unread_count || 0);
+    } catch (error) {
+      setUnreadMessageCount(0);
+    }
+  };
+
   useEffect(() => {
     const currentUser = getCurrentUser();
     setUser(currentUser);
     loadDashboardData();
     loadUnreadMessageCount();
   }, []);
+
+  // Periodically update unread count to ensure real-time updates
+  useEffect(() => {
+    const unreadCountInterval = setInterval(() => {
+      loadUnreadMessageCount();
+    }, 10000); // Update every 10 seconds
+
+    return () => clearInterval(unreadCountInterval);
+  }, [loadUnreadMessageCount]);
 
   const toggleTheme = () => {
     setTheme(theme === 'light' ? 'dark' : 'light');
@@ -137,15 +155,6 @@ const PrincipalDashboard = ({ onLogout }) => {
     return [...new Set(dashboardData.teachers.map(t => t.subject).filter(Boolean))];
   };
 
-  const loadUnreadMessageCount = async () => {
-    try {
-      const countData = await apiService.getUnreadMessageCount();
-      setUnreadMessageCount(countData.unread_count || 0);
-    } catch (error) {
-      setUnreadMessageCount(0);
-    }
-  };
-
   const loadDashboardData = async () => {
     setLoading(true);
     try {
@@ -217,8 +226,105 @@ const PrincipalDashboard = ({ onLogout }) => {
 
   if (loading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.loadingSpinner}>Loading Principal Dashboard...</div>
+      <div className={`${styles.container} ${styles[theme]}`}>
+        <header className={`${styles.header} ${styles[theme]}`}>
+          <div className={`${styles.topBar} ${styles[theme]}`}>
+            <div>
+              <h1 className={styles.title}>
+                <IoSchoolOutline style={{ marginRight: '12px', fontSize: '28px' }} />
+                Principal Dashboard
+              </h1>
+              <div className={`${styles.subTitle} ${styles[theme]}`}>
+                <IoPersonOutline style={{ marginRight: '8px', fontSize: '16px' }} />
+                Welcome back, {user?.display_name || 'Principal'}
+              </div>
+            </div>
+            <div className={styles.headerActions}>
+              <button className={styles.messagingBtn} onClick={toggleMessagingSidebar}>
+                <IoChatbubblesOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+                Messages
+                {unreadMessageCount > 0 && (
+                  <div className={`${styles.messageCountBadge} ${unreadMessageCount > 0 ? styles.hasUnread : ''}`}>
+                    {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                  </div>
+                )}
+              </button>
+              <button className={`${styles.themeToggleBtn} ${styles[theme]}`} onClick={toggleTheme}>
+                {theme === 'light' ? (
+                  <>
+                    <IoMoonOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+                    Dark
+                  </>
+                ) : (
+                  <>
+                    <IoSunnyOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+                    Light
+                  </>
+                )}
+              </button>
+              <button 
+                className={styles.logoutBtn} 
+                onClick={() => setPasswordChangeModalOpen(true)}
+                style={{ 
+                  marginRight: '10px',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.3s ease',
+                  background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'
+                }}
+              >
+                Change Password
+              </button>
+              <button className={styles.logoutBtn} onClick={onLogout}>
+                <IoLogOutOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+                Logout
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className={styles.summaryGrid}>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+              <IoPeopleOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+              Total Teachers
+            </div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#10b981' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>
+              Teaching Staff
+            </div>
+          </div>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+              <IoCheckmarkCircleOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+              Active Teachers
+            </div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#3b82f6' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>
+              Currently Active
+            </div>
+          </div>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+              <IoBarChartOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+              Avg LP Ratio
+            </div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#8b5cf6' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>
+              Learning Progress
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

@@ -169,13 +169,15 @@ const FDEDashboard = ({ onLogout }) => {
     setMessagingSidebarOpen(!messagingSidebarOpen);
   };
 
-  const handleMessageSent = () => {
-    // This will be called when a message is sent through the modal
-    // The MessagingSidebar will handle its own refresh
-          // Message sent successfully
-    // Refresh unread message count
-    loadUnreadMessageCount();
-  };
+    const handleMessageSent = () => {
+      // This will be called when a message is sent through the modal
+      // Refresh unread message count
+      loadUnreadMessageCount();
+      
+      // Force refresh of messaging sidebar to show new message immediately
+      // The MessagingSidebar will handle its own updates via WebSocket
+      console.log('Message sent, messaging components will update via WebSocket');
+    };
 
   useEffect(() => {
     loadData();
@@ -185,6 +187,15 @@ const FDEDashboard = ({ onLogout }) => {
     const currentUser = JSON.parse(localStorage.getItem('user'));
     setUser(currentUser);
   }, [loadData, loadAEOData, loadUnreadMessageCount]);
+
+  // Periodically update unread count to ensure real-time updates
+  useEffect(() => {
+    const unreadCountInterval = setInterval(() => {
+      loadUnreadMessageCount();
+    }, 10000); // Update every 10 seconds
+
+    return () => clearInterval(unreadCountInterval);
+  }, [loadUnreadMessageCount]);
 
   // Prepare sector distribution for PieChart - use lesson plan usage distribution
   const [lessonPlanDistribution, setLessonPlanDistribution] = useState([]);
@@ -289,9 +300,106 @@ const FDEDashboard = ({ onLogout }) => {
   if (loading) {
     return (
       <div className={`${styles.dashboardContainer} ${styles[theme]}`}>
-        <div className={`${styles.loadingSpinner} ${styles[theme]}`}>
-          <IoRefreshOutline style={{ marginRight: '8px', fontSize: '20px', animation: 'spin 1s linear infinite' }} />
-          Loading FDE Dashboard...
+        <header className={styles.header}>
+          <div className={`${styles.topBar} ${styles[theme]}`}>
+            <div>
+              <h1 className={styles.title}>
+                <IoSchoolOutline style={{ marginRight: '12px', fontSize: '28px' }} />
+                Federal Directorate of Education Dashboard
+              </h1>
+              <div className={`${styles.subtitle} ${styles[theme]}`}>
+                <IoAnalyticsOutline style={{ marginRight: '8px', fontSize: '16px' }} />
+                National oversight of educational performance and school management
+              </div>
+            </div>
+            <div className={styles.headerActions}>
+              <button className={styles.messagingBtn} onClick={toggleMessagingSidebar}>
+                <IoChatbubblesOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+                Messages
+                {unreadMessageCount > 0 && (
+                  <div className={`${styles.messageCountBadge} ${unreadMessageCount > 0 ? styles.hasUnread : ''}`}>
+                    {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                  </div>
+                )}
+              </button>
+              <button className={`${styles.themeToggleBtn} ${styles[theme]}`} onClick={toggleTheme}>
+                {theme === 'light' ? (
+                  <>
+                    <IoMoonOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+                    Dark
+                  </>
+                ) : (
+                  <>
+                    <IoSunnyOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+                    Light
+                  </>
+                )}
+              </button>
+              <button 
+                onClick={() => setPasswordChangeModalOpen(true)}
+                style={{ 
+                  marginRight: '10px',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.3s ease',
+                  background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)'
+                }}
+              >
+                Change Password
+              </button>
+              <button className={styles.logoutBtn} onClick={onLogout}>
+                <IoLogOutOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+                Logout
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className={styles.summaryGrid}>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+              <IoSchoolOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+              Total Schools
+            </div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#10b981' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>Under FDE Management</div>
+          </div>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+              <IoPeopleOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+              Total Teachers
+            </div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#8b5cf6' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>Across All Schools</div>
+          </div>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+              <IoBarChartOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+              Total Sectors
+            </div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#3b82f6' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>Educational Sectors</div>
+          </div>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>
+              <IoAnalyticsOutline style={{ marginRight: '8px', fontSize: '18px' }} />
+              Avg LP Ratio
+            </div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#f59e0b' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>Learning Progress Average</div>
+          </div>
         </div>
       </div>
     );

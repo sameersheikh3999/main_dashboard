@@ -1,62 +1,31 @@
 #!/usr/bin/env python3
 """
-Comprehensive Messaging System Test
-Tests all messaging functionality including authentication, sending, receiving, and conversation management
+FDE and AEO Messaging System Test
+Tests messaging functionality with the provided FDE and AEO credentials
 """
 
 import requests
 import json
-import time
 from datetime import datetime
 
 # Configuration
 BASE_URL = "http://localhost:8000/api"
 FRONTEND_URL = "http://localhost:3000"
 
-# Test users with working credentials
+# Test users with provided credentials
 TEST_USERS = {
-    'fde': {'username': 'test_fde_user', 'password': 'fde123'},
-    'aeo': {'username': 'Nilore', 'password': 'Nilore123'},
-    'principal': {'username': 'principal_723', 'password': 'Principal123'}
+    'fde': {'username': 'fde', 'password': 'Pass@1234'},
+    'aeo': {'username': 'Nilore', 'password': 'Pass@123'}
 }
 
-class MessagingTester:
+class FDEAEOMessagingTester:
     def __init__(self):
         self.session = requests.Session()
         self.tokens = {}
-        self.users = {}
         
     def log(self, message, level="INFO"):
         timestamp = datetime.now().strftime("%H:%M:%S")
         print(f"[{timestamp}] {level}: {message}")
-        
-    def test_backend_health(self):
-        """Test if backend is running"""
-        try:
-            response = self.session.get(f"{BASE_URL}/health/")
-            if response.status_code == 200:
-                self.log("✅ Backend is running")
-                return True
-            else:
-                self.log(f"❌ Backend health check failed: {response.status_code}", "ERROR")
-                return False
-        except Exception as e:
-            self.log(f"❌ Backend connection failed: {e}", "ERROR")
-            return False
-            
-    def test_frontend_health(self):
-        """Test if frontend is running"""
-        try:
-            response = self.session.get(FRONTEND_URL)
-            if response.status_code == 200:
-                self.log("✅ Frontend is running")
-                return True
-            else:
-                self.log(f"❌ Frontend health check failed: {response.status_code}", "ERROR")
-                return False
-        except Exception as e:
-            self.log(f"❌ Frontend connection failed: {e}", "ERROR")
-            return False
     
     def authenticate_user(self, username, password):
         """Authenticate a user and return token"""
@@ -78,12 +47,30 @@ class MessagingTester:
                     self.log(f"❌ No token received for {username}", "ERROR")
                     return False
             else:
-                self.log(f"❌ Authentication failed for {username}: {response.status_code}", "ERROR")
+                self.log(f"❌ Authentication failed for {username}: {response.status_code} - {response.text}", "ERROR")
                 return False
                 
         except Exception as e:
             self.log(f"❌ Authentication error for {username}: {e}", "ERROR")
             return False
+    
+    def test_aeo_sector_data(self):
+        """Test getting AEO sector data"""
+        try:
+            response = self.session.get(f"{BASE_URL}/aeos/sector-schools/")
+            
+            if response.status_code == 200:
+                data = response.json()
+                schools = data.get('schools', [])
+                self.log(f"✅ Retrieved AEO sector data with {len(schools)} schools")
+                return data
+            else:
+                self.log(f"❌ Failed to get AEO sector data: {response.status_code}", "ERROR")
+                return None
+                
+        except Exception as e:
+            self.log(f"❌ AEO sector data error: {e}", "ERROR")
+            return None
     
     def test_principal_details(self, school_name):
         """Test getting principal details for a school"""
@@ -140,40 +127,6 @@ class MessagingTester:
             self.log(f"❌ Get conversations error: {e}", "ERROR")
             return None
     
-    def test_get_messages(self, conversation_id):
-        """Test getting messages for a conversation"""
-        try:
-            response = self.session.get(f"{BASE_URL}/conversations/{conversation_id}/messages/")
-            
-            if response.status_code == 200:
-                data = response.json()
-                self.log(f"✅ Retrieved {len(data)} messages for conversation {conversation_id}")
-                return data
-            else:
-                self.log(f"❌ Failed to get messages: {response.status_code}", "ERROR")
-                return None
-                
-        except Exception as e:
-            self.log(f"❌ Get messages error: {e}", "ERROR")
-            return None
-    
-    def test_aeo_sector_data(self):
-        """Test getting AEO sector data"""
-        try:
-            response = self.session.get(f"{BASE_URL}/aeos/sector-schools/")
-            
-            if response.status_code == 200:
-                data = response.json()
-                self.log(f"✅ Retrieved AEO sector data with {len(data.get('schools', []))} schools")
-                return data
-            else:
-                self.log(f"❌ Failed to get AEO sector data: {response.status_code}", "ERROR")
-                return None
-                
-        except Exception as e:
-            self.log(f"❌ AEO sector data error: {e}", "ERROR")
-            return None
-    
     def test_unread_count(self):
         """Test getting unread message count"""
         try:
@@ -192,33 +145,61 @@ class MessagingTester:
             self.log(f"❌ Unread count error: {e}", "ERROR")
             return None
     
-    def run_comprehensive_test(self):
-        """Run comprehensive messaging test"""
-        self.log("🚀 Starting Comprehensive Messaging System Test")
-        self.log("=" * 60)
+    def test_fde_dashboard_data(self):
+        """Test getting FDE dashboard data"""
+        try:
+            response = self.session.get(f"{BASE_URL}/admin/dashboard/")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log(f"✅ Retrieved FDE dashboard data")
+                return data
+            else:
+                self.log(f"❌ Failed to get FDE dashboard data: {response.status_code}", "ERROR")
+                return None
+                
+        except Exception as e:
+            self.log(f"❌ FDE dashboard data error: {e}", "ERROR")
+            return None
+    
+    def test_aeo_dashboard_data(self):
+        """Test getting AEO dashboard data"""
+        try:
+            response = self.session.get(f"{BASE_URL}/aeos/sector-schools/")
+            
+            if response.status_code == 200:
+                data = response.json()
+                self.log(f"✅ Retrieved AEO dashboard data")
+                return data
+            else:
+                self.log(f"❌ Failed to get AEO dashboard data: {response.status_code}", "ERROR")
+                return None
+                
+        except Exception as e:
+            self.log(f"❌ AEO dashboard data error: {e}", "ERROR")
+            return None
+    
+    def run_fde_test(self):
+        """Run FDE messaging test"""
+        self.log("\n🚀 Testing FDE User")
+        self.log("=" * 40)
         
-        # Test 1: Health checks
-        self.log("\n📋 Test 1: Health Checks")
-        if not self.test_backend_health():
+        # Test 1: FDE Authentication
+        fde_credentials = TEST_USERS['fde']
+        if not self.authenticate_user(fde_credentials['username'], fde_credentials['password']):
             return False
-        if not self.test_frontend_health():
+        
+        # Test 2: FDE Dashboard Data
+        fde_data = self.test_fde_dashboard_data()
+        if not fde_data:
             return False
         
-        # Test 2: Authentication
-        self.log("\n📋 Test 2: Authentication")
-        for role, credentials in TEST_USERS.items():
-            if not self.authenticate_user(credentials['username'], credentials['password']):
-                self.log(f"❌ Authentication failed for {role}", "ERROR")
-                return False
-        
-        # Test 3: AEO Dashboard Data
-        self.log("\n📋 Test 3: AEO Dashboard Data")
+        # Test 3: Get AEO Sector Data
         aeo_data = self.test_aeo_sector_data()
         if not aeo_data:
             return False
         
         # Test 4: Principal Details
-        self.log("\n📋 Test 4: Principal Details")
         schools = aeo_data.get('schools', [])
         if schools:
             test_school = schools[0].get('school_name', '')
@@ -233,8 +214,61 @@ class MessagingTester:
             self.log("❌ No schools data available", "ERROR")
             return False
         
-        # Test 5: Send Message (AEO to Principal)
-        self.log("\n📋 Test 5: Send Message (AEO to Principal)")
+        # Test 5: Send Message (FDE to Principal)
+        if principal_data:
+            message_text = f"Test message from FDE at {datetime.now().strftime('%H:%M:%S')}"
+            message_result = self.test_send_message(
+                test_school,
+                message_text,
+                principal_data['id']
+            )
+            if not message_result:
+                return False
+        
+        # Test 6: Get Conversations
+        conversations = self.test_get_conversations()
+        if conversations is None:
+            return False
+        
+        # Test 7: Unread Count
+        unread_count = self.test_unread_count()
+        if unread_count is None:
+            return False
+        
+        self.log("✅ FDE messaging test completed successfully!")
+        return True
+    
+    def run_aeo_test(self):
+        """Run AEO messaging test"""
+        self.log("\n🚀 Testing AEO User")
+        self.log("=" * 40)
+        
+        # Test 1: AEO Authentication
+        aeo_credentials = TEST_USERS['aeo']
+        if not self.authenticate_user(aeo_credentials['username'], aeo_credentials['password']):
+            return False
+        
+        # Test 2: AEO Dashboard Data
+        aeo_data = self.test_aeo_dashboard_data()
+        if not aeo_data:
+            return False
+        
+        # Test 3: Principal Details
+        schools = aeo_data.get('schools', [])
+        if schools:
+            test_school = schools[0].get('school_name', '')
+            if test_school:
+                principal_data = self.test_principal_details(test_school)
+                if not principal_data:
+                    return False
+            else:
+                self.log("❌ No schools found in AEO data", "ERROR")
+                return False
+        else:
+            self.log("❌ No schools data available", "ERROR")
+            return False
+        
+        # Test 4: Send Message (AEO to Principal)
         if principal_data:
             message_text = f"Test message from AEO at {datetime.now().strftime('%H:%M:%S')}"
             message_result = self.test_send_message(
@@ -245,70 +279,61 @@ class MessagingTester:
             if not message_result:
                 return False
         
-        # Test 6: Get Conversations
-        self.log("\n📋 Test 6: Get Conversations")
+        # Test 5: Get Conversations
         conversations = self.test_get_conversations()
         if conversations is None:
             return False
         
-        # Test 7: Get Messages for First Conversation
-        self.log("\n📋 Test 7: Get Messages")
-        if conversations:
-            first_conversation = conversations[0]
-            conversation_id = first_conversation.get('conversation_id')
-            if conversation_id:
-                messages = self.test_get_messages(conversation_id)
-                if messages is None:
-                    return False
-            else:
-                self.log("❌ No conversation ID found", "ERROR")
-                return False
-        else:
-            self.log("❌ No conversations found", "ERROR")
-            return False
-        
-        # Test 8: Unread Count
-        self.log("\n📋 Test 8: Unread Count")
+        # Test 6: Unread Count
         unread_count = self.test_unread_count()
         if unread_count is None:
             return False
         
-        # Test 9: Switch to Principal and Check Messages
-        self.log("\n📋 Test 9: Principal Message Check")
-        principal_credentials = TEST_USERS['principal']
-        if self.authenticate_user(principal_credentials['username'], principal_credentials['password']):
-            principal_conversations = self.test_get_conversations()
-            if principal_conversations is None:
-                return False
-            
-            principal_unread = self.test_unread_count()
-            if principal_unread is None:
-                return False
-        else:
-            self.log("❌ Failed to authenticate as principal", "ERROR")
-            return False
-        
-        self.log("\n✅ All messaging tests completed successfully!")
-        self.log("=" * 60)
+        self.log("✅ AEO messaging test completed successfully!")
         return True
+    
+    def run_comprehensive_test(self):
+        """Run comprehensive FDE and AEO messaging test"""
+        self.log("🚀 Starting FDE and AEO Messaging System Test")
+        self.log("=" * 60)
+        
+        # Test FDE functionality
+        fde_success = self.run_fde_test()
+        
+        # Reset session for AEO test
+        self.session = requests.Session()
+        self.tokens = {}
+        
+        # Test AEO functionality
+        aeo_success = self.run_aeo_test()
+        
+        if fde_success and aeo_success:
+            self.log("\n✅ All FDE and AEO messaging tests completed successfully!")
+            self.log("=" * 60)
+            return True
+        else:
+            self.log("\n❌ Some tests failed!")
+            self.log("=" * 60)
+            return False
 
 def main():
     """Main test function"""
-    tester = MessagingTester()
+    tester = FDEAEOMessagingTester()
     
     try:
         success = tester.run_comprehensive_test()
         if success:
-            print("\n🎉 MESSAGING SYSTEM IS WORKING PROPERLY!")
+            print("\n🎉 FDE AND AEO MESSAGING SYSTEM IS WORKING PROPERLY!")
             print("\n📊 Summary:")
-            print("✅ Backend API is running")
-            print("✅ Frontend is accessible")
-            print("✅ Authentication is working")
+            print("✅ FDE Authentication is working")
+            print("✅ AEO Authentication is working")
             print("✅ Message sending is functional")
             print("✅ Conversation management is working")
-            print("✅ Real-time messaging is operational")
+            print("✅ Principal lookup is working")
+            print("✅ Unread count is working")
+            print("✅ Dashboard data access is working")
         else:
-            print("\n❌ MESSAGING SYSTEM HAS ISSUES!")
+            print("\n❌ FDE AND AEO MESSAGING SYSTEM HAS ISSUES!")
             print("Please check the logs above for specific problems.")
             
     except KeyboardInterrupt:

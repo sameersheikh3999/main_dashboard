@@ -104,6 +104,9 @@ const AdminMessagingModal = ({ isOpen, onClose, theme = 'light', onMessageSent }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+    e.nativeEvent.preventDefault();
+    e.nativeEvent.stopPropagation();
     
     if (!message.trim()) {
       setError('Please enter a message');
@@ -283,7 +286,7 @@ const AdminMessagingModal = ({ isOpen, onClose, theme = 'light', onMessageSent }
             </div>
 
             <div className={styles.rightColumn}>
-              <form onSubmit={handleSubmit} className={styles.messageForm}>
+              <form onSubmit={handleSubmit} className={styles.messageForm} noValidate>
                 <div className={styles.formGroup}>
                   <label className={`${styles.label} ${theme === 'dark' ? styles.dark : ''}`}>
                 <IoArrowUpOutline style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Broadcast Message

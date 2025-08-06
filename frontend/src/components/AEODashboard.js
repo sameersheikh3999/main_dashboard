@@ -70,6 +70,15 @@ const AEODashboard = ({ onLogout }) => {
     document.body.style.transition = 'all 0.3s ease';
   }, [theme]);
 
+  const loadUnreadMessageCount = async () => {
+    try {
+      const countData = await apiService.getUnreadMessageCount();
+      setUnreadMessageCount(countData.unread_count || 0);
+    } catch (error) {
+      setUnreadMessageCount(0);
+    }
+  };
+
   useEffect(() => {
     // Get current user info
     const currentUser = JSON.parse(localStorage.getItem('user'));
@@ -79,14 +88,14 @@ const AEODashboard = ({ onLogout }) => {
     loadUnreadMessageCount();
   }, []);
 
-  const loadUnreadMessageCount = async () => {
-    try {
-      const countData = await apiService.getUnreadMessageCount();
-      setUnreadMessageCount(countData.unread_count || 0);
-    } catch (error) {
-      setUnreadMessageCount(0);
-    }
-  };
+  // Periodically update unread count to ensure real-time updates
+  useEffect(() => {
+    const unreadCountInterval = setInterval(() => {
+      loadUnreadMessageCount();
+    }, 10000); // Update every 10 seconds
+
+    return () => clearInterval(unreadCountInterval);
+  }, [loadUnreadMessageCount]);
 
   const loadData = async () => {
     setLoading(true);
@@ -155,6 +164,10 @@ const AEODashboard = ({ onLogout }) => {
     // This will be called when a message is sent through the modal
     // Refresh unread message count
     loadUnreadMessageCount();
+    
+    // Force refresh of messaging sidebar to show new message immediately
+    // The MessagingSidebar will handle its own updates via WebSocket
+    console.log('Message sent, messaging components will update via WebSocket');
   };
 
   const getPerformanceColor = (score) => {
@@ -295,7 +308,121 @@ const AEODashboard = ({ onLogout }) => {
   if (loading) {
     return (
       <div className={`${styles.dashboardContainer} ${styles[theme]}`}>
-        <div className={`${styles.loadingSpinner} ${styles[theme]}`}>Loading AEO Dashboard...</div>
+        <header className={styles.header}>
+          <div className={`${styles.topBar} ${styles[theme]}`}>
+            <div>
+              <h1 className={styles.title}>{userSector} Sector - AEO Dashboard</h1>
+              <div className={`${styles.subtitle} ${styles[theme]}`}>
+                Sector-specific oversight of educational performance and school management
+              </div>
+            </div>
+            <div className={styles.headerActions}>
+              <button className={styles.messagingBtn} onClick={toggleMessagingSidebar}>
+                <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8s-9-3.582-9-8 4.03-8 9-8 9 3.582 9 8zm-9 4h.01M12 16h.01"/>
+                </svg>
+                Messages
+                {unreadMessageCount > 0 && (
+                  <div className={`${styles.messageCountBadge} ${unreadMessageCount > 0 ? styles.hasUnread : ''}`}>
+                    {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                  </div>
+                )}
+              </button>
+              <button className={`${styles.themeToggleBtn} ${styles[theme]}`} onClick={toggleTheme}>
+                {theme === 'light' ? (
+                  <>
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                    </svg>
+                    Dark
+                  </>
+                ) : (
+                  <>
+                    <svg fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                    </svg>
+                    Light
+                  </>
+                )}
+              </button>
+              <button 
+                className={styles.logoutBtn} 
+                onClick={() => setPasswordChangeModalOpen(true)}
+                style={{  
+                  marginRight: '10px',
+                  fontWeight: 'bold',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.3s ease',
+                  background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
+                  color: '#475569',
+                  border: '1px solid #cbd5e1'
+                }}
+              >
+                Change Password
+              </button>
+              <button className={styles.logoutBtn} onClick={onLogout}>Logout</button>
+            </div>
+          </div>
+        </header>
+        
+        <div className={styles.summaryGrid}>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>Total Schools</div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#10b981' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>In {userSector} Sector</div>
+          </div>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>Total Teachers</div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#8b5cf6' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>Across {userSector} Schools</div>
+          </div>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>Sector Avg LP Ratio</div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#3b82f6' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>Learning Progress Average</div>
+          </div>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>Active Schools</div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#f59e0b' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>Schools with {'>'}10% Active Teachers</div>
+          </div>
+          <div className={`${styles.summaryCard} ${styles[theme]} ${styles.loadingCard}`}>
+            <div className={`${styles.summaryTitle} ${styles[theme]}`}>Internet Available</div>
+            <div className={`${styles.summaryValue} ${styles[theme]}`} style={{ color: '#10b981' }}>
+              <div className={styles.smallLoadingSpinner}></div>
+            </div>
+            <div className={`${styles.summarySub} ${styles[theme]}`}>Loading...</div>
+          </div>
+        </div>
+        
+        <div className={`${styles.fullWidthCard} ${styles[theme]} ${styles.loadingCard}`}>
+          <div className={`${styles.sectionTitle} ${styles[theme]}`}>
+            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            School Performance Overview
+            <div className={styles.smallLoadingSpinner} style={{ marginLeft: '10px' }}></div>
+          </div>
+          <div className={styles.schoolTableContainer}>
+            <div className={styles.loadingTable}>
+              <div className={styles.loadingRow}></div>
+              <div className={styles.loadingRow}></div>
+              <div className={styles.loadingRow}></div>
+              <div className={styles.loadingRow}></div>
+              <div className={styles.loadingRow}></div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

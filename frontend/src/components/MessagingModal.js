@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { apiService } from '../services/api';
+import { apiService, getCurrentUser } from '../services/api';
+import getWebSocketService from '../services/websocket';
 import { 
   IoChatbubblesOutline,
   IoCheckmarkCircleOutline,
@@ -346,7 +347,11 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
   }, [isOpen, schoolName, schoolData, fetchPrincipal]);
 
   const handleSubmit = async (e) => {
+    console.log('handleSubmit called', e);
     e.preventDefault();
+    e.stopPropagation();
+    e.nativeEvent.preventDefault();
+    e.nativeEvent.stopPropagation();
     
     if (!message.trim()) {
       setError('Please enter a message');
@@ -363,18 +368,53 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
       setError('');
       setSuccess('');
       
+      console.log('Sending message:', {
+        schoolName: recipient.role === 'AEO' ? `${recipient.name} Sector` : schoolName,
+        message: message.trim(),
+        recipientId: recipient.id
+      });
+      
       // For AEO messages (FDE to AEO), use the AEO's sector as school name
       const schoolNameForMessage = recipient.role === 'AEO' ? `${recipient.name} Sector` : schoolName;
       
-      await apiService.sendMessage(schoolNameForMessage, message.trim(), recipient.id);
+      // Try to send via WebSocket first for real-time delivery
+      const websocketService = getWebSocketService();
+      const currentUser = getCurrentUser();
+      let wsSuccess = false;
       
+      try {
+        // Try to send via WebSocket for real-time delivery
+        wsSuccess = websocketService.sendChatMessage(
+          message.trim(),
+          currentUser?.id,
+          null // We don't have conversation ID in modal, will be created by backend
+        );
+        
+        if (wsSuccess) {
+          console.log('Message sent via WebSocket for real-time delivery');
+        } else {
+          console.log('WebSocket not ready, will use REST API');
+        }
+      } catch (error) {
+        console.error('WebSocket send failed:', error);
+        wsSuccess = false;
+      }
+      
+      // Always send via REST API as fallback or primary method
+      const messageResult = await apiService.sendMessage(schoolNameForMessage, message.trim(), recipient.id);
+      
+      console.log('Message sent successfully via REST API:', messageResult);
       setSuccess('Message sent successfully!');
       setMessage('');
       
-      // Call the callback to refresh conversations if provided
+      // Call onMessageSent callback to update messaging components immediately
       if (onMessageSent) {
+        console.log('Calling onMessageSent callback to update messaging components');
         onMessageSent();
       }
+      
+      // WebSocket will also handle real-time updates for other users
+      console.log('Message sent successfully, WebSocket will handle real-time updates');
       
       // Close modal after a short delay
       setTimeout(() => {
@@ -383,6 +423,7 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
       }, 2000);
       
     } catch (err) {
+      console.error('Error sending message:', err);
       setError(err.message || 'Failed to send message');
       // Handle error silently
     } finally {
@@ -405,8 +446,15 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
   if (!isOpen) return null;
 
   return (
-    <ModalOverlay onClick={handleClose}>
-      <ModalContent theme={theme} onClick={(e) => e.stopPropagation()}>
+    <ModalOverlay onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleClose();
+    }}>
+      <ModalContent theme={theme} onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}>
         <ModalHeader theme={theme}>
           <ModalTitle theme={theme}>
             <IoChatbubblesOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Send Message
@@ -435,7 +483,7 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
             </div>
           </SchoolInfo>
 
-          <MessageForm onSubmit={handleSubmit}>
+          <MessageForm onSubmit={handleSubmit} action="javascript:void(0);" noValidate>
             <FormGroup>
               <Label theme={theme}>
                 <IoArrowUpOutline style={{ marginRight: '8px', verticalAlign: 'middle' }} /> Your Message
@@ -465,7 +513,12 @@ const MessagingModal = ({ isOpen, onClose, schoolName, schoolData, theme = 'ligh
               <Button type="button" onClick={handleClose} disabled={loading} theme={theme}>
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" disabled={loading || !recipient} theme={theme}>
+              <Button 
+                type="submit" 
+                variant="primary" 
+                disabled={loading || !recipient} 
+                theme={theme}
+              >
                 {loading ? (
                   <>
                     <LoadingSpinner />

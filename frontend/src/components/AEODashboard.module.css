@@ -592,7 +592,73 @@
   background: #ef4444;
 }
 
-/* Loading Spinner */
+/* Small Loading Spinner */
+.smallLoadingSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e2e8f0;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+.smallLoadingSpinner.dark {
+  border: 2px solid #475569;
+  border-top: 2px solid #60a5fa;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Loading Card Styles */
+.loadingCard {
+  opacity: 0.8;
+  position: relative;
+}
+
+.loadingCard::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+.loadingCard.dark::after {
+  background: linear-gradient(90deg, transparent, rgba(30, 41, 59, 0.1), transparent);
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Loading Table */
+.loadingTable {
+  padding: 20px;
+}
+
+.loadingRow {
+  height: 40px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.loadingRow.dark {
+  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+  background-size: 200% 100%;
+}
+
+/* Legacy Loading Spinner (kept for compatibility) */
 .loadingSpinner {
   text-align: center;
   padding: 80px 40px;
@@ -614,11 +680,6 @@
   font-size: 3rem;
   margin-bottom: 16px;
   animation: spin 2s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 /* Message Count Badge */
