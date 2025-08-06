@@ -33,7 +33,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-y9r1*v1c-5)((n0!rx39c37rt-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,api-dashboard.niete.pk,dashboard.niete.pk').split(',')
 
 # Application definition
 

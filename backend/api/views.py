@@ -1196,8 +1196,80 @@ class SchoolInfrastructureDataView(APIView):
 # Health check
 class HealthCheckView(APIView):
     permission_classes = [AllowAny]
+    
     def get(self, request):
-        return Response({'status': 'ok'})
+        """Comprehensive health check endpoint"""
+        import os
+        import psutil
+        from django.conf import settings
+        from django.db import connection
+        from datetime import datetime
+        
+        try:
+            # Basic system info
+            health_data = {
+                'status': 'ok',
+                'timestamp': datetime.now().isoformat(),
+                'version': '1.0.0',
+                'environment': os.getenv('ENVIRONMENT', 'development'),
+                'debug': settings.DEBUG,
+            }
+            
+            # Database health check
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                    health_data['database'] = {
+                        'status': 'ok',
+                        'connection': 'active'
+                    }
+            except Exception as e:
+                health_data['database'] = {
+                    'status': 'error',
+                    'error': str(e)
+                }
+                health_data['status'] = 'degraded'
+            
+            # System resources
+            try:
+                health_data['system'] = {
+                    'cpu_percent': psutil.cpu_percent(interval=1),
+                    'memory_percent': psutil.virtual_memory().percent,
+                    'disk_percent': psutil.disk_usage('/').percent
+                }
+            except Exception as e:
+                health_data['system'] = {
+                    'error': str(e)
+                }
+            
+            # CORS configuration check
+            try:
+                cors_origins = getattr(settings, 'CORS_ALLOWED_ORIGINS', [])
+                health_data['cors'] = {
+                    'configured_origins': cors_origins,
+                    'frontend_origin_allowed': 'https://dashboard.niete.pk' in cors_origins
+                }
+            except Exception as e:
+                health_data['cors'] = {
+                    'error': str(e)
+                }
+            
+            # API endpoints status
+            health_data['endpoints'] = {
+                'auth': '/api/auth/login/',
+                'health': '/api/health/',
+                'data': '/api/bigquery/aggregated-data/',
+                'messages': '/api/messages/'
+            }
+            
+            return Response(health_data)
+            
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }, status=500)
 
 # Data sync management
 class DataSyncStatusView(APIView):
