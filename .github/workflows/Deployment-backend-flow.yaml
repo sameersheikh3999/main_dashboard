@@ -1,0 +1,59 @@
+name: Deploy Dashboard Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/Deployment-backend-flow.yaml'
+
+jobs:
+  deploy:
+    name: Deploy Backend to VM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH Access
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.HOST_KEY }}
+
+      - name: SSH into VM and Deploy
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.HOST_USER }}@${{ secrets.HOST_IP }} << 'EOF'
+            set -e
+
+            echo "📍 Navigating to project directory..."
+            cd /home/ubuntu/fde-dashboard
+
+            echo "📥 Auto-commit local changes (if any)..."
+            git add . && git commit -m "Auto commit before backend pull" || true
+
+            echo "🔄 Pulling latest changes..."
+            git pull --no-rebase origin main
+
+            echo "📁 Moving into backend..."
+            cd backend
+
+            echo "🐳 Building backend Docker image..."
+            docker build -t dashboard-backend-${{ github.run_number }} .
+
+            echo "🛑 Stopping old backend container (if running)..."
+            docker stop dashboard-backend || true
+            docker rm dashboard-backend || true
+
+            echo "🚀 Running new backend container..."
+            docker run -d --name dashboard-backend -p 8005:8000 dashboard-backend-${{ github.run_number }}
+
+            echo "🧹 Pruning stopped containers..."
+            docker container prune -f
+
+            echo "🧼 Cleaning unused Docker images..."
+            docker image prune -f
+
+            echo "✅ Backend deployment complete!"
+          EOF
